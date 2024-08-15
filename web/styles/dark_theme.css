@@ -342,8 +342,13 @@
         color: inherit;
     }
 
-    /* these are converting grey things to "new grey" */
-    :disabled,
+    /* these are converting grey things to "new grey".
+       :disabled rules are exploded for CSS selector performance reasons. */
+    button:disabled,
+    option:disabled,
+    select:disabled,
+    textarea:disabled,
+    input:disabled,
     input:not([type="radio"]):read-only,
     textarea:read-only,
     #organization-permissions .dropdown-widget-button:disabled,
@@ -532,7 +537,7 @@
         background-color: hsl(212deg 28% 8% / 75%);
     }
 
-    & div.overlay .flex.overlay-content > div,
+    & div.overlay .flex.overlay-content > .overlay-container,
     #settings_page,
     .informational-overlays .overlay-content {
         box-shadow: 0 0 30px hsl(212deg 32% 7%);
@@ -541,7 +546,7 @@
     #draft_overlay,
     #scheduled_messages_overlay_container,
     #message-edit-history-overlay-container {
-        .flex.overlay-content > div {
+        .flex.overlay-content > .overlay-container {
             box-shadow: 0 0 30px hsl(213deg 31% 0%);
             background-color: var(--color-background);
         }
@@ -697,7 +702,6 @@
     .subscriber-list-box .subscriber_list_container .subscriber-list td,
     .member-list-box,
     .member-list-box .member_list_container .member-list td,
-    #subscription_overlay .subsection-parent div,
     #subscription_overlay .settings-radio-input-parent,
     #settings_page .sidebar-wrapper,
     #settings_page .sidebar-wrapper *,
