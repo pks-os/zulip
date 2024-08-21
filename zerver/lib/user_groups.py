@@ -51,6 +51,7 @@ class UserGroupDict(TypedDict):
     members: list[int]
     direct_subgroup_ids: list[int]
     is_system_group: bool
+    can_manage_group: int | AnonymousSettingGroupDict
     can_mention_group: int | AnonymousSettingGroupDict
 
 
@@ -90,15 +91,20 @@ def has_user_group_access(
     if user_group.is_system_group:
         return False
 
+    can_edit_all_user_groups = user_profile.can_edit_all_user_groups()
+
     group_member_ids = get_user_group_direct_member_ids(user_group)
     if (
         not user_profile.is_realm_admin
         and not user_profile.is_moderator
         and user_profile.id not in group_member_ids
     ):
-        return False
+        can_edit_all_user_groups = False
 
-    return True
+    if can_edit_all_user_groups:
+        return True
+
+    return is_user_in_group(user_group.can_manage_group, user_profile)
 
 
 def access_user_group_by_id(
@@ -375,7 +381,10 @@ def user_groups_in_realm_serialized(realm: Realm) -> list[UserGroupDict]:
     UserGroup and UserGroupMembership that we need.
     """
     realm_groups = NamedUserGroup.objects.select_related(
-        "can_mention_group", "can_mention_group__named_user_group"
+        "can_manage_group",
+        "can_manage_group__named_user_group",
+        "can_mention_group",
+        "can_mention_group__named_user_group",
     ).filter(realm=realm)
 
     membership = UserGroupMembership.objects.filter(user_group__realm=realm).values_list(
@@ -411,6 +420,9 @@ def user_groups_in_realm_serialized(realm: Realm) -> list[UserGroupDict]:
             members=direct_member_ids,
             direct_subgroup_ids=direct_subgroup_ids,
             is_system_group=user_group.is_system_group,
+            can_manage_group=get_setting_value_for_user_group_object(
+                user_group.can_manage_group, group_members, group_subgroups
+            ),
             can_mention_group=get_setting_value_for_user_group_object(
                 user_group.can_mention_group, group_members, group_subgroups
             ),
@@ -598,19 +610,20 @@ def bulk_create_system_user_groups(groups: list[dict[str, str]], realm: Realm) -
         user_group_ids = [id for (id,) in cursor.fetchall()]
 
     rows = [
-        SQL("({},{},{},{},{},{})").format(
+        SQL("({},{},{},{},{},{},{})").format(
             Literal(user_group_ids[idx]),
             Literal(realm.id),
             Literal(group["name"]),
             Literal(group["description"]),
             Literal(True),
             Literal(initial_group_setting_value),
+            Literal(initial_group_setting_value),
         )
         for idx, group in enumerate(groups)
     ]
     query = SQL(
         """
-        INSERT INTO zerver_namedusergroup (usergroup_ptr_id, realm_id, name, description, is_system_group, can_mention_group_id)
+        INSERT INTO zerver_namedusergroup (usergroup_ptr_id, realm_id, name, description, is_system_group, can_manage_group_id, can_mention_group_id)
         VALUES {rows}
         """
     ).format(rows=SQL(", ").join(rows))
@@ -691,7 +704,9 @@ def create_system_user_groups_for_realm(realm: Realm) -> dict[int, NamedUserGrou
     for group in system_user_groups_list:
         user_group = set_defaults_for_group_settings(group, {}, system_groups_name_dict)
         groups_with_updated_settings.append(user_group)
-    NamedUserGroup.objects.bulk_update(groups_with_updated_settings, ["can_mention_group"])
+    NamedUserGroup.objects.bulk_update(
+        groups_with_updated_settings, ["can_manage_group", "can_mention_group"]
+    )
 
     subgroup_objects: list[GroupGroupMembership] = []
     # "Nobody" system group is not a subgroup of any user group, since it is already empty.

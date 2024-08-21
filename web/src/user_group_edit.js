@@ -17,6 +17,7 @@ import {$t, $t_html} from "./i18n";
 import * as ListWidget from "./list_widget";
 import * as loading from "./loading";
 import * as overlays from "./overlays";
+import {page_params} from "./page_params";
 import * as people from "./people";
 import * as scroll_util from "./scroll_util";
 import * as settings_components from "./settings_components";
@@ -141,8 +142,13 @@ function show_membership_settings(group) {
 }
 
 function show_general_settings(group) {
-    user_group_components.setup_permissions_dropdown(group, false);
+    user_group_components.setup_permissions_dropdown("can_manage_group", group, false);
+    user_group_components.setup_permissions_dropdown("can_mention_group", group, false);
     update_general_settings_elements(group);
+
+    if (!page_params.development_environment) {
+        $("#can_manage_group_widget_container").hide();
+    }
 }
 
 function enable_group_edit_settings(group) {
@@ -720,7 +726,7 @@ export function setup_page(callback) {
 
     function populate_and_fill() {
         const template_data = {
-            can_create_or_edit_user_groups: settings_data.user_can_edit_user_groups(),
+            can_create_user_groups: settings_data.user_can_create_user_groups(),
             max_user_group_name_length,
         };
 
