@@ -48,7 +48,7 @@ from zerver.models import (
 from zerver.models.groups import SystemGroups
 from zerver.models.realms import get_realm
 from zerver.models.users import active_user_ids
-from zerver.tornado.django_api import send_event, send_event_on_commit
+from zerver.tornado.django_api import send_event_on_commit
 
 if settings.BILLING_ENABLED:
     from corporate.lib.stripe import RealmBillingSession
@@ -113,6 +113,7 @@ def do_set_realm_property(
         update_users_in_full_members_system_group(realm, acting_user=acting_user)
 
 
+@transaction.atomic(durable=True)
 def do_set_push_notifications_enabled_end_timestamp(
     realm: Realm, value: int | None, *, acting_user: UserProfile | None
 ) -> None:
@@ -128,25 +129,24 @@ def do_set_push_notifications_enabled_end_timestamp(
     if old_timestamp == value:
         return
 
-    with transaction.atomic():
-        new_datetime = None
-        if value is not None:
-            new_datetime = timestamp_to_datetime(value)
-        setattr(realm, name, new_datetime)
-        realm.save(update_fields=[name])
+    new_datetime = None
+    if value is not None:
+        new_datetime = timestamp_to_datetime(value)
+    setattr(realm, name, new_datetime)
+    realm.save(update_fields=[name])
 
-        event_time = timezone_now()
-        RealmAuditLog.objects.create(
-            realm=realm,
-            event_type=RealmAuditLog.REALM_PROPERTY_CHANGED,
-            event_time=event_time,
-            acting_user=acting_user,
-            extra_data={
-                RealmAuditLog.OLD_VALUE: old_timestamp,
-                RealmAuditLog.NEW_VALUE: value,
-                "property": name,
-            },
-        )
+    event_time = timezone_now()
+    RealmAuditLog.objects.create(
+        realm=realm,
+        event_type=RealmAuditLog.REALM_PROPERTY_CHANGED,
+        event_time=event_time,
+        acting_user=acting_user,
+        extra_data={
+            RealmAuditLog.OLD_VALUE: old_timestamp,
+            RealmAuditLog.NEW_VALUE: value,
+            "property": name,
+        },
+    )
 
     event = dict(
         type="realm",
@@ -154,7 +154,7 @@ def do_set_push_notifications_enabled_end_timestamp(
         property=name,
         value=value,
     )
-    send_event(realm, event, active_user_ids(realm.id))
+    send_event_on_commit(realm, event, active_user_ids(realm.id))
 
 
 @transaction.atomic(savepoint=False)
@@ -334,31 +334,31 @@ def validate_plan_for_authentication_methods(
             )
 
 
+@transaction.atomic(savepoint=False)
 def do_set_realm_authentication_methods(
     realm: Realm, authentication_methods: dict[str, bool], *, acting_user: UserProfile | None
 ) -> None:
     old_value = realm.authentication_methods_dict()
-    with transaction.atomic():
-        for key, value in authentication_methods.items():
-            # This does queries in a loop, but this isn't a performance sensitive
-            # path and is only run rarely.
-            if value:
-                RealmAuthenticationMethod.objects.get_or_create(realm=realm, name=key)
-            else:
-                RealmAuthenticationMethod.objects.filter(realm=realm, name=key).delete()
+    for key, value in authentication_methods.items():
+        # This does queries in a loop, but this isn't a performance sensitive
+        # path and is only run rarely.
+        if value:
+            RealmAuthenticationMethod.objects.get_or_create(realm=realm, name=key)
+        else:
+            RealmAuthenticationMethod.objects.filter(realm=realm, name=key).delete()
 
-        updated_value = realm.authentication_methods_dict()
-        RealmAuditLog.objects.create(
-            realm=realm,
-            event_type=RealmAuditLog.REALM_PROPERTY_CHANGED,
-            event_time=timezone_now(),
-            acting_user=acting_user,
-            extra_data={
-                RealmAuditLog.OLD_VALUE: old_value,
-                RealmAuditLog.NEW_VALUE: updated_value,
-                "property": "authentication_methods",
-            },
-        )
+    updated_value = realm.authentication_methods_dict()
+    RealmAuditLog.objects.create(
+        realm=realm,
+        event_type=RealmAuditLog.REALM_PROPERTY_CHANGED,
+        event_time=timezone_now(),
+        acting_user=acting_user,
+        extra_data={
+            RealmAuditLog.OLD_VALUE: old_value,
+            RealmAuditLog.NEW_VALUE: updated_value,
+            "property": "authentication_methods",
+        },
+    )
 
     event_data = dict(
         authentication_methods=get_realm_authentication_methods_for_page_params_api(
@@ -371,7 +371,7 @@ def do_set_realm_authentication_methods(
         property="default",
         data=event_data,
     )
-    send_event(realm, event, active_user_ids(realm.id))
+    send_event_on_commit(realm, event, active_user_ids(realm.id))
 
 
 def do_set_realm_stream(
@@ -403,7 +403,7 @@ def do_set_realm_stream(
     else:
         raise AssertionError("Invalid realm stream field.")
 
-    with transaction.atomic():
+    with transaction.atomic(durable=True):
         realm.save(update_fields=[field])
 
         event_time = timezone_now()
@@ -419,13 +419,13 @@ def do_set_realm_stream(
             },
         )
 
-    event = dict(
-        type="realm",
-        op="update",
-        property=property,
-        value=stream_id,
-    )
-    send_event(realm, event, active_user_ids(realm.id))
+        event = dict(
+            type="realm",
+            op="update",
+            property=property,
+            value=stream_id,
+        )
+        send_event_on_commit(realm, event, active_user_ids(realm.id))
 
 
 def do_set_realm_new_stream_announcements_stream(
@@ -452,6 +452,7 @@ def do_set_realm_zulip_update_announcements_stream(
     )
 
 
+@transaction.atomic(durable=True)
 def do_set_realm_user_default_setting(
     realm_user_default: RealmUserDefault,
     name: str,
@@ -463,21 +464,20 @@ def do_set_realm_user_default_setting(
     realm = realm_user_default.realm
     event_time = timezone_now()
 
-    with transaction.atomic(savepoint=False):
-        setattr(realm_user_default, name, value)
-        realm_user_default.save(update_fields=[name])
+    setattr(realm_user_default, name, value)
+    realm_user_default.save(update_fields=[name])
 
-        RealmAuditLog.objects.create(
-            realm=realm,
-            event_type=RealmAuditLog.REALM_DEFAULT_USER_SETTINGS_CHANGED,
-            event_time=event_time,
-            acting_user=acting_user,
-            extra_data={
-                RealmAuditLog.OLD_VALUE: old_value,
-                RealmAuditLog.NEW_VALUE: value,
-                "property": name,
-            },
-        )
+    RealmAuditLog.objects.create(
+        realm=realm,
+        event_type=RealmAuditLog.REALM_DEFAULT_USER_SETTINGS_CHANGED,
+        event_time=event_time,
+        acting_user=acting_user,
+        extra_data={
+            RealmAuditLog.OLD_VALUE: old_value,
+            RealmAuditLog.NEW_VALUE: value,
+            "property": name,
+        },
+    )
 
     event = dict(
         type="realm_user_settings_defaults",
@@ -485,7 +485,7 @@ def do_set_realm_user_default_setting(
         property=name,
         value=value,
     )
-    send_event(realm, event, active_user_ids(realm.id))
+    send_event_on_commit(realm, event, active_user_ids(realm.id))
 
 
 RealmDeactivationReasonType = Literal[
@@ -695,6 +695,40 @@ def do_change_realm_org_type(
 
     event = dict(type="realm", op="update", property="org_type", value=org_type)
     send_event_on_commit(realm, event, active_user_ids(realm.id))
+
+
+@transaction.atomic(durable=True)
+def do_change_realm_max_invites(realm: Realm, max_invites: int, acting_user: UserProfile) -> None:
+    old_value = realm.max_invites
+    new_max = max_invites
+
+    # Reset to default maximum for plan type
+    if new_max == 0:
+        if realm.plan_type == Realm.PLAN_TYPE_PLUS:
+            new_max = Realm.INVITES_STANDARD_REALM_DAILY_MAX
+        elif realm.plan_type == Realm.PLAN_TYPE_STANDARD:
+            new_max = Realm.INVITES_STANDARD_REALM_DAILY_MAX
+        elif realm.plan_type == Realm.PLAN_TYPE_SELF_HOSTED:
+            new_max = None  # type: ignore[assignment] # https://github.com/python/mypy/issues/3004
+        elif realm.plan_type == Realm.PLAN_TYPE_STANDARD_FREE:
+            new_max = Realm.INVITES_STANDARD_REALM_DAILY_MAX
+        elif realm.plan_type == Realm.PLAN_TYPE_LIMITED:
+            new_max = settings.INVITES_DEFAULT_REALM_DAILY_MAX
+
+    realm.max_invites = new_max
+    realm.save(update_fields=["_max_invites"])
+
+    RealmAuditLog.objects.create(
+        event_type=RealmAuditLog.REALM_PROPERTY_CHANGED,
+        realm=realm,
+        event_time=timezone_now(),
+        acting_user=acting_user,
+        extra_data={
+            "old_value": old_value,
+            "new_value": new_max,
+            "property": "max_invites",
+        },
+    )
 
 
 @transaction.atomic(savepoint=False)
