@@ -94,7 +94,10 @@ export const same_recipient = function util_same_recipient(a?: Recipient, b?: Re
     return false;
 };
 
-export const same_sender = function util_same_sender(a: RawMessage, b: RawMessage): boolean {
+export const same_sender = function util_same_sender(
+    a: RawMessage | undefined,
+    b: RawMessage | undefined,
+): boolean {
     return (
         a !== undefined &&
         b !== undefined &&
@@ -198,8 +201,8 @@ export function find_stream_wildcard_mentions(message_content: string): string |
     // We cannot use the exact same regex as the server side uses (in zerver/lib/mention.py)
     // because Safari < 16.4 does not support look-behind assertions.  Reframe the lookbehind of a
     // negative character class as a start-of-string or positive character class.
-    const mention = message_content.match(
-        /(?:^|[\s"'(/<[{])(@\*{2}(all|everyone|stream|channel)\*{2})/,
+    const mention = /(?:^|[\s"'(/<[{])(@\*{2}(all|everyone|stream|channel)\*{2})/.exec(
+        message_content,
     );
     if (mention === null) {
         return null;
