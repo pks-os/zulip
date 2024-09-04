@@ -134,8 +134,10 @@ h3,
 .setting_notification_sound,
 .play_notification_sound {
     margin-right: 4px;
+}
 
-    & i {
+.play_notification_sound {
+    .notification-sound-icon {
         font-size: 22px;
         /* Visually center with chevron in select */
         line-height: 26px;
@@ -774,37 +776,19 @@ input[type="checkbox"] {
 
 .admin_profile_fields_table,
 .edit_profile_field_choices_container,
-.profile_field_choices_table {
-    .movable-row {
-        cursor: move;
-
-        .fa-ellipsis-v {
-            color: hsl(0deg 0% 75%);
-            position: relative;
-            top: 1px;
-
-            + i {
-                margin-right: 5px;
-            }
-        }
-    }
-}
-
+.profile_field_choices_table,
 .admin_linkifiers_table {
     .movable-row {
         .move-handle {
             cursor: move;
             user-select: none;
+            margin-right: 5px;
         }
 
         .fa-ellipsis-v {
             color: hsl(0deg 0% 75%);
             position: relative;
             top: 1px;
-
-            + i {
-                margin-right: 5px;
-            }
         }
     }
 }
@@ -1384,7 +1368,7 @@ $option_title_width: 180px;
                 border-bottom: 1px solid transparent;
             }
 
-            .icon {
+            .sidebar-item-icon {
                 font-size: 1.4em;
                 text-align: center;
                 color: hsl(0deg 0% 53%);
@@ -1403,6 +1387,16 @@ $option_title_width: 180px;
                 font-size: 1em;
                 text-align: center;
                 color: hsl(0deg 0% 62%);
+            }
+        }
+
+        .collapse-settings-button,
+        .collapse-settings-button > #toggle_collapse_chevron {
+            color: var(--color-text-url);
+
+            &:hover {
+                cursor: pointer;
+                color: var(--color-text-url-hover);
             }
         }
 
@@ -1567,11 +1561,11 @@ $option_title_width: 180px;
         width: 100%;
         top: 20px;
         position: sticky;
-    }
 
-    #show_my_user_profile_modal i {
-        padding-left: 2px;
-        vertical-align: middle;
+        .show-user-profile-icon {
+            padding-left: 2px;
+            vertical-align: middle;
+        }
     }
 }
 
@@ -1695,21 +1689,6 @@ $option_title_width: 180px;
 #attachment-stats-holder {
     position: relative;
     margin-top: 13px;
-    display: inline-block;
-}
-
-.collapse-settings-btn {
-    margin: 10px 0 0 10px;
-    color: hsl(200deg 100% 40%);
-
-    &:hover {
-        cursor: pointer;
-        color: hsl(208deg 56% 38%);
-    }
-}
-
-#toggle_collapse {
-    margin-left: 2px;
     display: inline-block;
 }
 

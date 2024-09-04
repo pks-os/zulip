@@ -137,7 +137,7 @@ p.n-margin {
     padding-left: 26px;
     text-indent: -10px;
 
-    & i {
+    .all-messages-search-caution-icon {
         margin: 0 3px 0 1px;
     }
 
@@ -1887,7 +1887,7 @@ body:not(.hide-left-sidebar) {
             background: hsl(240deg 96% 68% / 50%);
             border-radius: 50%;
 
-            & i {
+            & .scroll-to-bottom-icon {
                 color: hsl(0deg 0% 100%);
                 margin: 0 auto;
                 font-size: 21px;
