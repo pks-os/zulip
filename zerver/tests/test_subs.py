@@ -120,6 +120,7 @@ from zerver.models import (
     UserProfile,
 )
 from zerver.models.groups import SystemGroups
+from zerver.models.realm_audit_logs import AuditLogEventType
 from zerver.models.realms import CommonPolicyEnum, get_realm
 from zerver.models.streams import get_default_stream_groups, get_stream
 from zerver.models.users import active_non_guest_user_ids, get_user, get_user_profile_by_id_in_realm
@@ -691,7 +692,7 @@ class StreamAdminTest(ZulipTestCase):
         self.assertEqual(messages[0].content, expected_notification)
 
         history_public_to_subscribers_log = RealmAuditLog.objects.filter(
-            event_type=RealmAuditLog.STREAM_PROPERTY_CHANGED,
+            event_type=AuditLogEventType.CHANNEL_PROPERTY_CHANGED,
             modified_stream=stream,
         ).last()
         assert history_public_to_subscribers_log is not None
@@ -704,7 +705,7 @@ class StreamAdminTest(ZulipTestCase):
         self.assertEqual(history_public_to_subscribers_log.extra_data, expected_extra_data)
 
         invite_only_log = RealmAuditLog.objects.filter(
-            event_type=RealmAuditLog.STREAM_PROPERTY_CHANGED,
+            event_type=AuditLogEventType.CHANNEL_PROPERTY_CHANGED,
             modified_stream=stream,
         ).order_by("-id")[1]
         assert invite_only_log is not None
@@ -752,7 +753,7 @@ class StreamAdminTest(ZulipTestCase):
         self.assertEqual(messages[0].content, expected_notification)
 
         history_public_to_subscribers_log = RealmAuditLog.objects.filter(
-            event_type=RealmAuditLog.STREAM_PROPERTY_CHANGED,
+            event_type=AuditLogEventType.CHANNEL_PROPERTY_CHANGED,
             modified_stream=stream,
         ).last()
         assert history_public_to_subscribers_log is not None
@@ -765,7 +766,7 @@ class StreamAdminTest(ZulipTestCase):
         self.assertEqual(history_public_to_subscribers_log.extra_data, expected_extra_data)
 
         invite_only_log = RealmAuditLog.objects.filter(
-            event_type=RealmAuditLog.STREAM_PROPERTY_CHANGED,
+            event_type=AuditLogEventType.CHANNEL_PROPERTY_CHANGED,
             modified_stream=stream,
         ).order_by("-id")[1]
         assert invite_only_log is not None
@@ -872,7 +873,7 @@ class StreamAdminTest(ZulipTestCase):
         self.assertEqual(messages[0].content, expected_notification)
 
         realm_audit_log = RealmAuditLog.objects.filter(
-            event_type=RealmAuditLog.STREAM_PROPERTY_CHANGED,
+            event_type=AuditLogEventType.CHANNEL_PROPERTY_CHANGED,
             modified_stream=stream,
         ).last()
         assert realm_audit_log is not None
@@ -911,7 +912,7 @@ class StreamAdminTest(ZulipTestCase):
         self.assertEqual(messages[0].content, expected_notification)
 
         realm_audit_log = RealmAuditLog.objects.filter(
-            event_type=RealmAuditLog.STREAM_PROPERTY_CHANGED,
+            event_type=AuditLogEventType.CHANNEL_PROPERTY_CHANGED,
             modified_stream=stream,
         ).last()
         assert realm_audit_log is not None
@@ -950,7 +951,7 @@ class StreamAdminTest(ZulipTestCase):
         self.assertEqual(messages[0].content, expected_notification)
 
         realm_audit_log = RealmAuditLog.objects.filter(
-            event_type=RealmAuditLog.STREAM_PROPERTY_CHANGED,
+            event_type=AuditLogEventType.CHANNEL_PROPERTY_CHANGED,
             modified_stream=stream,
         ).last()
         assert realm_audit_log is not None
@@ -1048,7 +1049,7 @@ class StreamAdminTest(ZulipTestCase):
         self.assertEqual(messages[0].content, expected_notification)
 
         realm_audit_log = RealmAuditLog.objects.filter(
-            event_type=RealmAuditLog.STREAM_PROPERTY_CHANGED,
+            event_type=AuditLogEventType.CHANNEL_PROPERTY_CHANGED,
             modified_stream=stream,
         ).last()
         assert realm_audit_log is not None
@@ -1085,7 +1086,7 @@ class StreamAdminTest(ZulipTestCase):
         self.assertEqual(messages[0].content, expected_notification)
 
         realm_audit_log = RealmAuditLog.objects.filter(
-            event_type=RealmAuditLog.STREAM_PROPERTY_CHANGED,
+            event_type=AuditLogEventType.CHANNEL_PROPERTY_CHANGED,
             modified_stream=stream,
         ).last()
         assert realm_audit_log is not None
@@ -1115,7 +1116,7 @@ class StreamAdminTest(ZulipTestCase):
         self.assertEqual(messages[1].content, expected_notification)
 
         realm_audit_log = RealmAuditLog.objects.filter(
-            event_type=RealmAuditLog.STREAM_PROPERTY_CHANGED,
+            event_type=AuditLogEventType.CHANNEL_PROPERTY_CHANGED,
             modified_stream=stream,
         ).last()
         assert realm_audit_log is not None
@@ -1232,8 +1233,8 @@ class StreamAdminTest(ZulipTestCase):
         self.assertIsNone(attachment.is_realm_public)
 
         cordelia = self.example_user("cordelia")
-        self.assertFalse(validate_attachment_request(cordelia, attachment.path_id))
-        self.assertTrue(validate_attachment_request(owner, attachment.path_id))
+        self.assertFalse(validate_attachment_request(cordelia, attachment.path_id)[0])
+        self.assertTrue(validate_attachment_request(owner, attachment.path_id)[0])
         attachment.refresh_from_db()
         self.assertFalse(attachment.is_realm_public)
         self.assertFalse(validate_attachment_request_for_spectator_access(realm, attachment))
@@ -1258,7 +1259,7 @@ class StreamAdminTest(ZulipTestCase):
         self.assertTrue(attachment.is_web_public)
         self.assertIsNone(attachment.is_realm_public)
 
-        self.assertTrue(validate_attachment_request(cordelia, attachment.path_id))
+        self.assertTrue(validate_attachment_request(cordelia, attachment.path_id)[0])
         attachment.refresh_from_db()
         self.assertTrue(attachment.is_realm_public)
 
@@ -1311,8 +1312,8 @@ class StreamAdminTest(ZulipTestCase):
         self.assertFalse(attachment.is_web_public)
         self.assertIsNone(attachment.is_realm_public)
 
-        self.assertFalse(validate_attachment_request(cordelia, attachment.path_id))
-        self.assertTrue(validate_attachment_request(owner, attachment.path_id))
+        self.assertFalse(validate_attachment_request(cordelia, attachment.path_id)[0])
+        self.assertTrue(validate_attachment_request(owner, attachment.path_id)[0])
         attachment.refresh_from_db()
         self.assertFalse(attachment.is_realm_public)
 
@@ -1959,7 +1960,7 @@ class StreamAdminTest(ZulipTestCase):
         self.assertEqual(messages[-1].content, expected_notification)
 
         realm_audit_log = RealmAuditLog.objects.filter(
-            event_type=RealmAuditLog.STREAM_PROPERTY_CHANGED,
+            event_type=AuditLogEventType.CHANNEL_PROPERTY_CHANGED,
             modified_stream=stream,
         ).last()
         assert realm_audit_log is not None
@@ -2021,7 +2022,7 @@ class StreamAdminTest(ZulipTestCase):
         self.assertEqual(messages[-1].content, expected_notification)
 
         realm_audit_log = RealmAuditLog.objects.filter(
-            event_type=RealmAuditLog.STREAM_PROPERTY_CHANGED,
+            event_type=AuditLogEventType.CHANNEL_PROPERTY_CHANGED,
             modified_stream=stream,
         ).last()
         assert realm_audit_log is not None
@@ -2085,7 +2086,7 @@ class StreamAdminTest(ZulipTestCase):
             self.assertEqual(messages[-1].content, expected_notification)
 
             realm_audit_log = RealmAuditLog.objects.filter(
-                event_type=RealmAuditLog.STREAM_PROPERTY_CHANGED,
+                event_type=AuditLogEventType.CHANNEL_PROPERTY_CHANGED,
                 modified_stream=stream,
             ).last()
             assert realm_audit_log is not None
@@ -2118,7 +2119,7 @@ class StreamAdminTest(ZulipTestCase):
         )
         self.assertEqual(messages[0].content, expected_notification)
         realm_audit_log = RealmAuditLog.objects.filter(
-            event_type=RealmAuditLog.STREAM_MESSAGE_RETENTION_DAYS_CHANGED
+            event_type=AuditLogEventType.CHANNEL_MESSAGE_RETENTION_DAYS_CHANGED
         ).last()
         assert realm_audit_log is not None
         expected_extra_data = {RealmAuditLog.OLD_VALUE: None, RealmAuditLog.NEW_VALUE: 2}
@@ -2139,7 +2140,7 @@ class StreamAdminTest(ZulipTestCase):
         )
         self.assertEqual(messages[1].content, expected_notification)
         realm_audit_log = RealmAuditLog.objects.filter(
-            event_type=RealmAuditLog.STREAM_MESSAGE_RETENTION_DAYS_CHANGED
+            event_type=AuditLogEventType.CHANNEL_MESSAGE_RETENTION_DAYS_CHANGED
         ).last()
         assert realm_audit_log is not None
         expected_extra_data = {RealmAuditLog.OLD_VALUE: 2, RealmAuditLog.NEW_VALUE: 8}
@@ -2161,7 +2162,7 @@ class StreamAdminTest(ZulipTestCase):
         )
         self.assertEqual(messages[2].content, expected_notification)
         realm_audit_log = RealmAuditLog.objects.filter(
-            event_type=RealmAuditLog.STREAM_MESSAGE_RETENTION_DAYS_CHANGED
+            event_type=AuditLogEventType.CHANNEL_MESSAGE_RETENTION_DAYS_CHANGED
         ).last()
         assert realm_audit_log is not None
         expected_extra_data = {
