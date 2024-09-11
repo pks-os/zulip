@@ -2,6 +2,7 @@
 
 const {strict: assert} = require("assert");
 
+const {make_user} = require("./lib/example_user");
 const {mock_esm, zrequire} = require("./lib/namespace");
 const {run_test, noop} = require("./lib/test");
 
@@ -39,17 +40,18 @@ message_lists.current = {
     },
 };
 message_lists.all_rendered_message_lists = () => [message_lists.current];
+message_lists.non_rendered_data = () => [];
 
 // And we will also test some real code, of course.
 const message_events = zrequire("message_events");
 const message_store = zrequire("message_store");
 const people = zrequire("people");
 
-const isaac = {
+const isaac = make_user({
     email: "isaac@example.com",
     user_id: 30,
     full_name: "Isaac Newton",
-};
+});
 people.add_active_user(isaac);
 
 /*
@@ -98,7 +100,6 @@ run_test("insert_message", ({override}) => {
 
     helper.redirect(direct_message_group_data, "process_loaded_messages");
     helper.redirect(message_notifications, "received_messages");
-    helper.redirect(message_util, "add_new_messages_data");
     helper.redirect(message_util, "add_new_messages");
     helper.redirect(stream_list, "update_streams_sidebar");
     helper.redirect(unread_ops, "process_visible");
@@ -112,7 +113,6 @@ run_test("insert_message", ({override}) => {
     // comes in:
     assert.deepEqual(helper.events, [
         [direct_message_group_data, "process_loaded_messages"],
-        [message_util, "add_new_messages_data"],
         [message_util, "add_new_messages"],
         [unread_ui, "update_unread_counts"],
         [unread_ops, "process_visible"],

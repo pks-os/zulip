@@ -1,7 +1,10 @@
+import assert from "minimalistic-assert";
+
 import * as hash_util from "./hash_util";
 import {$t} from "./i18n";
 import * as muted_users from "./muted_users";
 import * as narrow_state from "./narrow_state";
+import {page_params} from "./page_params";
 import * as people from "./people";
 import * as presence from "./presence";
 import {realm} from "./state_data";
@@ -142,13 +145,10 @@ export function user_last_seen_time_status(user_id: number): string {
         return $t({defaultMessage: "Activity unknown"});
     } else if (last_active_date === undefined) {
         // There are situations where the client has incomplete presence
-        // history on a user.  This can happen when users are deactivated,
-        // or when they just haven't been present in a long time (and we
-        // may have queries on presence that go back only N weeks).
-        //
-        // We give this vague status for such users; we will get to
-        // delete this code when we finish rewriting the presence API.
-        return $t({defaultMessage: "Active more than 2 weeks ago"});
+        // history on a user. This can happen when users are deactivated,
+        // or when the user's last activity is older than what we fetch.
+        assert(page_params.presence_history_limit_days_for_web_app === 365);
+        return $t({defaultMessage: "Not active in the last year"});
     }
     return timerender.last_seen_status_from_date(last_active_date);
 }
@@ -323,6 +323,11 @@ function filter_user_ids(user_filter_text: string, user_ids: number[]): number[]
             // Bots should never appear in the right sidebar.  This
             // case should never happen, since bots cannot have
             // presence data.
+            return false;
+        }
+
+        if (!people.is_person_active(user_id)) {
+            // Deactivated users are hidden from the right sidebar entirely.
             return false;
         }
 

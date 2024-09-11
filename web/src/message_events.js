@@ -1,8 +1,10 @@
 import $ from "jquery";
+import _ from "lodash";
 import assert from "minimalistic-assert";
 
 import * as alert_words from "./alert_words";
 import {all_messages_data} from "./all_messages_data";
+import * as channel from "./channel";
 import * as compose_fade from "./compose_fade";
 import * as compose_notifications from "./compose_notifications";
 import * as compose_recipient from "./compose_recipient";
@@ -14,8 +16,10 @@ import * as message_edit from "./message_edit";
 import * as message_edit_history from "./message_edit_history";
 import * as message_events_util from "./message_events_util";
 import * as message_helper from "./message_helper";
+import * as message_list_data_cache from "./message_list_data_cache";
 import * as message_lists from "./message_lists";
 import * as message_notifications from "./message_notifications";
+import * as message_parser from "./message_parser";
 import * as message_store from "./message_store";
 import * as message_util from "./message_util";
 import * as message_view from "./message_view";
@@ -35,15 +39,142 @@ import * as unread_ops from "./unread_ops";
 import * as unread_ui from "./unread_ui";
 import * as util from "./util";
 
+export function update_views_filtered_on_message_property(
+    message_ids,
+    property_term_type,
+    property_value,
+) {
+    // NOTE: Call this function after updating the message property locally.
+    assert(!property_term_type.includes("not-"));
+
+    // List of narrow terms whose msg list doesn't get updated elsewhere but
+    // can be applied locally.
+    const supported_term_types = [
+        "has-image",
+        "has-link",
+        "has-reaction",
+        "has-attachment",
+        "is-starred",
+        "is-unread",
+        "is-mentioned",
+        "is-alerted",
+        // TODO: Implement support for these terms.
+        // "is-followed",
+    ];
+
+    if (message_ids.length === 0 || !supported_term_types.includes(property_term_type)) {
+        return;
+    }
+
+    for (const msg_list of message_lists.all_rendered_message_lists()) {
+        const filter = msg_list.data.filter;
+        const filter_term_types = filter.sorted_term_types();
+        if (
+            // Check if current filter relies on the changed message property.
+            !filter_term_types.includes(property_term_type) &&
+            !filter_term_types.includes(`not-${property_term_type}`)
+        ) {
+            continue;
+        }
+
+        // We need the message objects to determine if they match the filter.
+        const messages_to_fetch = [];
+        const messages = [];
+        for (const message_id of message_ids) {
+            const message = message_store.get(message_id);
+            if (message !== undefined) {
+                messages.push(message);
+            } else {
+                if (
+                    (filter_term_types.includes(property_term_type) && !property_value) ||
+                    (filter_term_types.includes(`not-${property_term_type}`) && property_value)
+                ) {
+                    // If the message is not cached, that means it is not present in the message list.
+                    // Also, the message is not supposed to be in the message list as per the filter and
+                    // it's property value. So, we don't need to fetch the message.
+                    continue;
+                }
+
+                const first_id = msg_list.first().id;
+                const last_id = msg_list.last().id;
+                const has_found_newest = msg_list.data.fetch_status.has_found_newest();
+                const has_found_oldest = msg_list.data.fetch_status.has_found_oldest();
+
+                if (message_id > first_id && message_id < last_id) {
+                    // Need to insert message middle of the list.
+                    messages_to_fetch.push(message_id);
+                } else if (message_id < first_id && has_found_oldest) {
+                    // Need to insert message at the start of list.
+                    messages_to_fetch.push(message_id);
+                } else if (message_id > last_id && has_found_newest) {
+                    // Need to insert message at the end of list.
+                    messages_to_fetch.push(message_id);
+                }
+            }
+        }
+
+        // In most cases, we will only have one message to fetch which
+        // can happen without rerendering the view.
+        // In case of multiple messages, we just rerender the view
+        // since it is likely to use similar amount of resources to
+        // fetching the messages and rerendering the view.
+        if (messages_to_fetch.length > 1 || !filter.can_apply_locally()) {
+            // TODO: Might be better to check if `/messages/matches_narrow`
+            // rather than doing a full rerender.
+            message_view.show(filter.terms(), {
+                then_select_id: msg_list.selected_id(),
+                then_select_offset: msg_list.selected_row().get_offset_to_window().top,
+                trigger: "message property update",
+                force_rerender: true,
+            });
+        } else if (messages_to_fetch.length === 1) {
+            // Fetch the message and update the view.
+            channel.get({
+                url: "/json/messages/" + messages_to_fetch[0],
+                success(data) {
+                    message_helper.process_new_message(data.message);
+                    update_views_filtered_on_message_property(message_ids, property_term_type);
+                },
+            });
+        } else {
+            // We have all the messages locally, so we can update the view.
+            //
+            // Special case: For starred messages view, we don't remove
+            // messages that are no longer starred to avoid
+            // implementing an undo mechanism for that view.
+            // TODO: A cleaner way to implement this might be to track which things
+            // have been unstarred in the starred messages view in this visit
+            // to the view, and have those stay.
+            if (
+                property_term_type === "is-starred" &&
+                _.isEqual(filter.sorted_term_types(), ["is-starred"])
+            ) {
+                msg_list.add_messages(messages);
+                continue;
+            }
+
+            // In most cases, we are only working to update a single message.
+            if (messages.length === 1) {
+                const message = messages[0];
+                if (filter.predicate()(message)) {
+                    msg_list.add_messages(messages);
+                } else {
+                    msg_list.remove_and_rerender(message_ids);
+                }
+            } else {
+                msg_list.data.remove(message_ids);
+                msg_list.data.add_messages(messages);
+                msg_list.rerender();
+            }
+        }
+    }
+}
+
 export function insert_new_messages(messages, sent_by_this_client, deliver_locally) {
     messages = messages.map((message) => message_helper.process_new_message(message));
 
     const any_untracked_unread_messages = unread.process_loaded_messages(messages, false);
     direct_message_group_data.process_loaded_messages(messages);
-
-    // all_messages_data is the data that we use to populate
-    // other lists, so we always update this
-    message_util.add_new_messages_data(messages, all_messages_data);
 
     let need_user_to_scroll = false;
     for (const list of message_lists.all_rendered_message_lists()) {
@@ -86,6 +217,14 @@ export function insert_new_messages(messages, sent_by_this_client, deliver_local
         }
     }
 
+    for (const msg_list_data of message_lists.non_rendered_data()) {
+        if (!msg_list_data.filter.can_apply_locally()) {
+            message_list_data_cache.remove(msg_list_data.filter);
+        } else {
+            message_util.add_new_messages_data(messages, msg_list_data);
+        }
+    }
+
     // sent_by_this_client will be true if ANY of the messages
     // were sent by this client; notifications.notify_local_mixes
     // will filter out any not sent by us.
@@ -118,6 +257,17 @@ export function update_messages(events) {
     let any_message_content_edited = false;
     let any_stream_changed = false;
     let local_cache_missing_messages = false;
+
+    // Clear message list data cache since the local data for the
+    // filters might no longer be accurate.
+    //
+    // TODO: Add logic to update the message list data cache.
+    // Special care needs to be taken to ensure that the cache is
+    // updated correctly when the message is moved to a different
+    // stream or topic. Also, we need to update message lists like
+    // `is:starred`, `is:mentioned`, etc. when the message flags are
+    // updated.
+    message_list_data_cache.clear();
 
     for (const event of events) {
         const anchor_message = message_store.get(event.message_id);
@@ -502,6 +652,39 @@ export function update_messages(events) {
         ) {
             message_edit_history.fetch_and_render_message_history(anchor_message);
         }
+
+        if (event.rendered_content !== undefined) {
+            // It is fine to call this in a loop since most of the time we are
+            // only working with a single message content edit.
+            update_views_filtered_on_message_property(
+                [event.message_id],
+                "has-image",
+                message_parser.message_has_image(event.rendered_content),
+            );
+            update_views_filtered_on_message_property(
+                [event.message_id],
+                "has-link",
+                message_parser.message_has_link(event.rendered_content),
+            );
+            update_views_filtered_on_message_property(
+                [event.message_id],
+                "has-attachment",
+                message_parser.message_has_attachment(event.rendered_content),
+            );
+
+            const is_mentioned = event.flags.some((flag) =>
+                ["mentioned", "stream_wildcard_mentioned", "topic_wildcard_mentioned"].includes(
+                    flag,
+                ),
+            );
+            update_views_filtered_on_message_property(
+                [event.message_id],
+                "is-mentioned",
+                is_mentioned,
+            );
+            const is_alerted = event.flags.includes("has_alert_word");
+            update_views_filtered_on_message_property([event.message_id], "is-alerted", is_alerted);
+        }
     }
 
     // If a topic was edited, we re-render the whole view to get any
@@ -552,10 +735,15 @@ export function update_messages(events) {
 }
 
 export function remove_messages(message_ids) {
-    all_messages_data.remove(message_ids);
+    // Update the rendered data first since it is most user visible.
     for (const list of message_lists.all_rendered_message_lists()) {
         list.remove_and_rerender(message_ids);
     }
+
+    for (const msg_list_data of message_lists.non_rendered_data()) {
+        msg_list_data.remove(message_ids);
+    }
+
     recent_senders.update_topics_of_deleted_message_ids(message_ids);
     recent_view_ui.update_topics_of_deleted_message_ids(message_ids);
     starred_messages.remove(message_ids);

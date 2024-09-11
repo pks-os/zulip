@@ -193,6 +193,11 @@ export function dispatch_normal_event(event) {
                     blueslip.error("Unexpected event type reaction/" + event.op);
                     break;
             }
+            message_events.update_views_filtered_on_message_property(
+                [event.message_id],
+                "has-reaction",
+                event.op === "add",
+            );
             break;
 
         case "realm": {
@@ -706,6 +711,23 @@ export function dispatch_normal_event(event) {
                 break;
             }
 
+            const privacy_settings = [
+                "send_stream_typing_notifications",
+                "send_private_typing_notifications",
+                "send_read_receipts",
+                "presence_enabled",
+                "email_address_visibility",
+            ];
+
+            if (privacy_settings.includes(event.property)) {
+                user_settings[event.property] = event.value;
+                settings_account.update_privacy_settings_box(event.property);
+                if (event.property === "presence_enabled") {
+                    activity_ui.redraw_user(current_user.user_id);
+                }
+                break;
+            }
+
             const user_preferences = [
                 "color_scheme",
                 "web_font_size_px",
@@ -729,10 +751,8 @@ export function dispatch_normal_event(event) {
                 "web_animate_image_previews",
                 "web_stream_unreads_count_display_policy",
                 "starred_message_counts",
-                "send_stream_typing_notifications",
-                "send_private_typing_notifications",
-                "send_read_receipts",
                 "web_navigate_to_sent_message",
+                "enter_sends",
             ];
 
             const original_home_view = user_settings.web_home_view;
@@ -851,20 +871,6 @@ export function dispatch_normal_event(event) {
             if (event.property === "web_escape_navigates_to_home_view") {
                 $("#go-to-home-view-hotkey-help").toggleClass("notdisplayed", !event.value);
             }
-            if (event.property === "enter_sends") {
-                user_settings.enter_sends = event.value;
-            }
-            if (event.property === "presence_enabled") {
-                user_settings.presence_enabled = event.value;
-                $("#user_presence_enabled").prop("checked", user_settings.presence_enabled);
-                activity_ui.redraw_user(current_user.user_id);
-                break;
-            }
-            if (event.property === "email_address_visibility") {
-                user_settings.email_address_visibility = event.value;
-                $("#user_email_address_visibility").val(event.value);
-                break;
-            }
             settings_preferences.update_page(event.property);
             break;
         }
@@ -884,6 +890,11 @@ export function dispatch_normal_event(event) {
                         starred_messages.remove(event.messages);
                         starred_messages_ui.rerender_ui();
                     }
+                    message_events.update_views_filtered_on_message_property(
+                        event.messages,
+                        "is-starred",
+                        new_value,
+                    );
                     break;
                 case "read":
                     if (event.op === "add") {
@@ -894,6 +905,11 @@ export function dispatch_normal_event(event) {
                             message_details: event.message_details,
                         });
                     }
+                    message_events.update_views_filtered_on_message_property(
+                        event.messages,
+                        "is-unread",
+                        new_value,
+                    );
                     break;
             }
             break;

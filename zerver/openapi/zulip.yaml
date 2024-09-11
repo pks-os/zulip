@@ -9190,6 +9190,21 @@ paths:
                     server sent user presence data for all users who had been active in the
                     last two weeks unconditionally.
                   example: 5
+                history_limit_days:
+                  type: integer
+                  description: |
+                    Limits how far back in time to fetch user presence data. If not specified,
+                    defaults to 14 days. A value of N means that the oldest presence data
+                    fetched will be from at most N days ago.
+
+                    Note that this is only useful during the initial user presence data fetch,
+                    as subsequent fetches should use the `last_update_id` parameter, which
+                    will act as the limit on how much presence data is returned. `history_limit_days`
+                    is ignored if `last_update_id` is passed with a value greater than `0`,
+                    indicating that the client already has some presence data.
+
+                    **Changes**: New in Zulip 10.0 (feature level 288).
+                  example: 365
                 new_user_input:
                   type: boolean
                   description: |
@@ -9901,12 +9916,15 @@ paths:
                       subscribed:
                         type: object
                         description: |
-                          A dictionary where the key is the Zulip API email address of the user/bot
-                          and the value is a list of the names of the channels that were subscribed
-                          to as a result of the query.
+                          A dictionary where the key is the ID of the user and the value
+                          is a list of the names of the channels that user was subscribed
+                          to as a result of the request.
+
+                          **Changes**: Before Zulip 10.0 (feature level 289), the user
+                          keys were Zulip API email addresses, not user ID.
                         additionalProperties:
                           description: |
-                            `{email_address}`: List of the names of the channels that were subscribed
+                            `{id}`: List of the names of the channels that were subscribed
                             to as a result of the query.
                           type: array
                           items:
@@ -9914,12 +9932,16 @@ paths:
                       already_subscribed:
                         type: object
                         description: |
-                          A dictionary where the key is the Zulip API email address of the user/bot
-                          and the value is a list of the names of the channels that the user/bot is
-                          already subscribed to.
+                          A dictionary where the key is the ID of the user and the value
+                          is a list of the names of the channels that where the user was
+                          not added as a subscriber in this request, because they were
+                          already a subscriber.
+
+                          **Changes**: Before Zulip 10.0 (feature level 289), the user
+                          keys were Zulip API email addresses, not user IDs.
                         additionalProperties:
                           description: |
-                            `{email_address}`: List of the names of the channels that the user is
+                            `{id}`: List of the names of the channels that the user is
                             already subscribed to.
                           type: array
                           items:
@@ -9933,11 +9955,10 @@ paths:
                           authorized to subscribe to. Only present if `"authorization_errors_fatal": false`.
                     example:
                       {
-                        "already_subscribed":
-                          {"iago@zulip.com": ["testing-help"]},
+                        "already_subscribed": {"1": ["testing-help"]},
                         "msg": "",
                         "result": "success",
-                        "subscribed": {"newbie@zulip.com": ["testing-help"]},
+                        "subscribed": {"2": ["testing-help"]},
                       }
         "400":
           description: Bad request.
@@ -13350,6 +13371,15 @@ paths:
                   type: boolean
                   default: false
                   example: true
+                presence_history_limit_days:
+                  description: |
+                    Limits how far back in time to fetch user presence data. If not specified,
+                    defaults to 14 days. A value of N means that the oldest presence data
+                    fetched will be from at most N days ago.
+
+                    **Changes**: New in Zulip 10.0 (feature level 288).
+                  type: integer
+                  example: 365
                 event_types:
                   $ref: "#/components/schemas/Event_types"
                 all_public_streams:
