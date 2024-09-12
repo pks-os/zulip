@@ -1,7 +1,7 @@
 {{#unless (or from_message_actions_popover only_topic_edit)}}
 <p class="white-space-preserve-wrap">{{#tr}}Move all messages in <strong>{topic_name}</strong>{{/tr}} to:</p>
 {{/unless}}
-<form class="new-style" id="move_topic_form">
+<form id="move_topic_form">
     {{#if only_topic_edit }}
     <p>{{t "Rename topic to:" }}</p>
     {{else if from_message_actions_popover}}
@@ -25,12 +25,12 @@
         <div class="topic_move_breadcrumb_messages">
             <label class="checkbox">
                 <input class="send_notification_to_new_thread" name="send_notification_to_new_thread" type="checkbox" {{#if notify_new_thread}}checked="checked"{{/if}} />
-                <span></span>
+                <span class="rendered-checkbox"></span>
                 {{t "Send automated notice to new topic" }}
             </label>
             <label class="checkbox">
                 <input class="send_notification_to_old_thread" name="send_notification_to_old_thread" type="checkbox" {{#if notify_old_thread}}checked="checked"{{/if}} />
-                <span></span>
+                <span class="rendered-checkbox"></span>
                 {{t "Send automated notice to old topic" }}
             </label>
         </div>

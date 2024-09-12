@@ -18,7 +18,7 @@
     </div>
     {{/if}}
     <div class="input-group">
-        <div id="invite_users_option_tabs_container" class="new-style"></div>
+        <div id="invite_users_option_tabs_container"></div>
         <div id="invitee_emails_container">
             <label for="invitee_emails" class="modal-field-label">{{t "Emails (one on each line or comma-separated)" }}</label>
             <div class="pill-container">
@@ -26,10 +26,10 @@
             </div>
         </div>
     </div>
-    <div class="input-group new-style" id="receive-invite-acceptance-notification-container">
+    <div class="input-group" id="receive-invite-acceptance-notification-container">
         <label class="checkbox display-block">
             <input type="checkbox" id="receive-invite-acceptance-notification" checked/>
-            <span></span>
+            <span class="rendered-checkbox"></span>
             {{t "Send me a direct message when my invitation is accepted" }}
         </label>
     </div>
@@ -73,10 +73,10 @@
         <label>{{t "Channels they should join" }}</label>
         <div id="streams_to_add">
             {{#if show_select_default_streams_option}}
-            <div class="select_default_streams new-style">
+            <div class="select_default_streams">
                 <label class="checkbox display-block modal-field-label">
                     <input type="checkbox" id="invite_select_default_streams" checked="checked" />
-                    <span></span>
+                    <span class="rendered-checkbox"></span>
                     {{t 'Default channels for this organization'}}
                 </label>
             </div>
