@@ -5,7 +5,7 @@ const {strict: assert} = require("assert");
 const {mock_esm, zrequire} = require("./lib/namespace");
 const {run_test} = require("./lib/test");
 const $ = require("./lib/zjquery");
-const {page_params, realm} = require("./lib/zpage_params");
+const {page_params, realm, current_user} = require("./lib/zpage_params");
 
 const {Filter} = zrequire("filter");
 const {MessageList} = zrequire("message_list");
@@ -123,7 +123,6 @@ function set_page_params_no_edit_restrictions() {
     realm.realm_message_content_edit_limit_seconds = null;
     realm.realm_allow_edit_history = true;
     realm.realm_message_content_delete_limit_seconds = null;
-    realm.realm_delete_own_message_policy = 1;
     realm.realm_enable_read_receipts = true;
     realm.realm_edit_topic_policy = 5;
     realm.realm_move_messages_within_stream_limit_seconds = null;
@@ -150,6 +149,8 @@ test("my_message_all_actions", () => {
     // Set page parameters.
     set_page_params_no_edit_restrictions();
     realm.realm_can_delete_any_message_group = everyone.id;
+    realm.realm_can_delete_own_message_group = everyone.id;
+    current_user.user_id = me.user_id;
     // Get message with maximum permissions available
     // Initialize message list
     const list = init_message_list();

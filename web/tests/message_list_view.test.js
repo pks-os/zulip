@@ -86,9 +86,6 @@ test("msg_moved_var", () => {
     function assert_moved_false(message_container) {
         assert.equal(message_container.moved, false);
     }
-    function assert_moved_undefined(message_container) {
-        assert.equal(message_container.moved, undefined);
-    }
 
     (function test_msg_moved_var() {
         const messages = [
@@ -177,8 +174,8 @@ test("msg_moved_var", () => {
 
         const result = list._message_groups[0].message_containers;
 
-        // no edit history: undefined
-        assert_moved_undefined(result[0]);
+        // no edit history: false
+        assert_moved_false(result[0]);
         // stream changed: true
         assert_moved_true(result[1]);
         // topic changed: true
@@ -189,10 +186,10 @@ test("msg_moved_var", () => {
         assert_moved_true(result[4]);
         // topic and content changed: false
         assert_moved_false(result[5]);
-        // only topic resolved: undefined
-        assert_moved_undefined(result[6]);
-        // only topic unresolved: undefined
-        assert_moved_undefined(result[7]);
+        // only topic resolved: false
+        assert_moved_false(result[6]);
+        // only topic unresolved: false
+        assert_moved_false(result[7]);
         // multiple edits with content edit: false
         assert_moved_false(result[8]);
         // multiple edits without content edit: true
@@ -405,7 +402,7 @@ test("muted_message_vars", () => {
 
         // Additionally test that, both there is no mention classname even on that message
         // which has a mention, since we don't want to display muted mentions so visibly.
-        assert.equal(result[1].mention_classname, null);
+        assert.equal(result[1].mention_classname, undefined);
 
         // Now, reveal the hidden messages.
         let is_revealed = true;
@@ -438,7 +435,7 @@ test("muted_message_vars", () => {
 
         // Additionally test that, both there is no mention classname even on that message
         // which has a mention, since we don't want to display hidden mentions so visibly.
-        assert.equal(result[1].mention_classname, null);
+        assert.equal(result[1].mention_classname, undefined);
     })();
 });
 

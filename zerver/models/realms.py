@@ -106,14 +106,6 @@ class CommonPolicyEnum(IntEnum):
     MODERATORS_ONLY = 4
 
 
-class CommonMessagePolicyEnum(IntEnum):
-    MEMBERS_ONLY = 1
-    ADMINS_ONLY = 2
-    FULL_MEMBERS_ONLY = 3
-    MODERATORS_ONLY = 4
-    EVERYONE = 5
-
-
 class EditTopicPolicyEnum(IntEnum):
     MEMBERS_ONLY = 1
     ADMINS_ONLY = 2
@@ -270,8 +262,6 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
 
     COMMON_POLICY_TYPES = [field.value for field in CommonPolicyEnum]
 
-    COMMON_MESSAGE_POLICY_TYPES = [field.value for field in CommonMessagePolicyEnum]
-
     INVITE_TO_REALM_POLICY_TYPES = [field.value for field in InviteToRealmPolicyEnum]
 
     CREATE_WEB_PUBLIC_STREAM_POLICY_TYPES = [
@@ -313,9 +303,9 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
         "UserGroup", on_delete=models.RESTRICT, related_name="+"
     )
 
-    # Who in the organization is allowed to delete messages they themselves sent.
-    delete_own_message_policy = models.PositiveSmallIntegerField(
-        default=CommonMessagePolicyEnum.EVERYONE
+    # Who in the organization is allowed to delete their own message.
+    can_delete_own_message_group = models.ForeignKey(
+        "UserGroup", on_delete=models.RESTRICT, related_name="+"
     )
 
     # Who in the organization is allowed to edit topics of any message.
@@ -652,7 +642,6 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
         bot_creation_policy=int,
         default_code_block_language=str,
         default_language=str,
-        delete_own_message_policy=int,
         description=str,
         digest_emails_enabled=bool,
         digest_weekday=int,
@@ -737,6 +726,15 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
             default_group_name=SystemGroups.ADMINISTRATORS,
             id_field_name="can_delete_any_message_group_id",
         ),
+        can_delete_own_message_group=GroupPermissionSetting(
+            require_system_group=False,
+            allow_internet_group=False,
+            allow_owners_group=False,
+            allow_nobody_group=False,
+            allow_everyone_group=True,
+            default_group_name=SystemGroups.EVERYONE,
+            id_field_name="can_delete_own_message_group_id",
+        ),
         direct_message_initiator_group=GroupPermissionSetting(
             require_system_group=False,
             allow_internet_group=False,
@@ -777,6 +775,7 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
         "can_create_public_channel_group",
         "can_create_web_public_channel_group",
         "can_delete_any_message_group",
+        "can_delete_own_message_group",
         "direct_message_initiator_group",
         "direct_message_permission_group",
     ]
@@ -1148,6 +1147,8 @@ def get_realm_with_settings(realm_id: int) -> Realm:
         "can_create_web_public_channel_group__named_user_group",
         "can_delete_any_message_group",
         "can_delete_any_message_group__named_user_group",
+        "can_delete_own_message_group",
+        "can_delete_own_message_group__named_user_group",
         "direct_message_initiator_group",
         "direct_message_initiator_group__named_user_group",
         "direct_message_permission_group",

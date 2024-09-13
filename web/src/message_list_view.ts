@@ -49,19 +49,16 @@ import * as util from "./util";
 export type MessageContainer = {
     background_color?: string;
     date_divider_html: string | undefined;
-    edited_alongside_sender?: boolean;
-    edited_in_left_col?: boolean;
-    edited_status_msg?: boolean;
     include_recipient: boolean;
     include_sender: boolean;
     is_hidden: boolean;
     last_edit_timestr: string | undefined;
-    mention_classname: string | null;
+    mention_classname: string | undefined;
     message_edit_notices_in_left_col: boolean;
     message_edit_notices_alongside_sender: boolean;
     message_edit_notices_for_status_message: boolean;
-    modified?: boolean;
-    moved?: boolean;
+    modified: boolean;
+    moved: boolean;
     msg: Message;
     sender_is_bot: boolean;
     sender_is_guest: boolean;
@@ -178,6 +175,9 @@ function analyze_edit_history(
             }
 
             if (edit_history_event.prev_topic) {
+                // TODO: Possibly this assert could be removed if we tightened the type
+                // on edit history elements such that a `prev_topic` being present means a
+                // `topic` element is.
                 assert(edit_history_event.topic !== undefined);
                 // We know it has a topic edit. Now we need to determine if
                 // it was a true move or a resolve/unresolve.
@@ -339,11 +339,17 @@ function get_users_for_recipient_row(message: Message): RecipientRowUser[] {
     return users.sort(compare_by_name);
 }
 
-let message_id_to_focus_after_processing_message_events: {
-    id: number | undefined;
-    selectionStart: number | undefined;
-    selectionEnd: number | undefined;
-} = {
+let message_id_to_focus_after_processing_message_events:
+    | {
+          id: number;
+          selectionStart: number;
+          selectionEnd: number;
+      }
+    | {
+          id: undefined;
+          selectionStart: undefined;
+          selectionEnd: undefined;
+      } = {
     id: undefined,
     selectionStart: undefined,
     selectionEnd: undefined,
@@ -605,22 +611,9 @@ export class MessageListView {
 
     _get_message_edited_vars(message: Message): {
         last_edit_timestr: string | undefined;
-        edited_in_left_col?: boolean;
-        edited_alongside_sender?: boolean;
-        edited_status_msg?: boolean;
-        moved?: boolean;
-        modified?: boolean;
+        moved: boolean;
+        modified: boolean;
     } {
-        // This function computes data on whether the message was edited
-        // and in what ways, as well as where the "EDITED" or "MOVED"
-        // label should be located, and adds it to the message_container
-        // object.
-        //
-        // The bools can be defined only when the message is edited
-        // (or when the `last_edit_timestr` is defined). The bools are:
-        //   * `edited_in_left_col`      -- when label appears in left column.
-        //   * `edited_alongside_sender` -- when label appears alongside sender info.
-        //   * `edited_status_msg`       -- when label appears for a "/me" message.
         const last_edit_timestr = this._get_msg_timestring(message);
         const edit_history_details = analyze_edit_history(message, last_edit_timestr);
 
@@ -635,9 +628,8 @@ export class MessageListView {
             // was marked as resolved if you need to).
             return {
                 last_edit_timestr: undefined,
-                edited_in_left_col: false,
-                edited_alongside_sender: false,
-                edited_status_msg: false,
+                moved: false,
+                modified: false,
             };
         }
 
@@ -664,15 +656,12 @@ export class MessageListView {
         sender_is_guest: boolean;
         should_add_guest_indicator_for_sender: boolean;
         is_hidden: boolean;
-        mention_classname?: string | null;
+        mention_classname: string | undefined;
         include_sender: boolean;
         status_message: string | false;
         last_edit_timestr: string | undefined;
-        edited_in_left_col?: boolean;
-        edited_alongside_sender?: boolean;
-        edited_status_msg?: boolean;
-        moved?: boolean;
-        modified?: boolean;
+        moved: boolean;
+        modified: boolean;
     } {
         /*
             If the message needs to be hidden because the sender was muted, we do
@@ -718,14 +707,14 @@ export class MessageListView {
                     stream_data.is_user_subscribed(message.stream_id, people.my_current_user_id())
                 ) {
                     mention_classname = "direct_mention";
+                } else {
+                    mention_classname = undefined;
                 }
             } else {
                 mention_classname = "group_mention";
             }
         } else {
-            // If there are no mentions, the classname might need to be updated (i.e.
-            // removed) to reflect this.
-            mention_classname = null;
+            mention_classname = undefined;
         }
         let include_sender = existing_include_sender && !is_hidden;
         if (is_revealed) {
@@ -756,8 +745,7 @@ export class MessageListView {
             sender_is_guest,
             should_add_guest_indicator_for_sender,
             is_hidden,
-            // don't set this unless we found a new value for it.
-            ...(mention_classname !== undefined && {mention_classname}),
+            mention_classname,
             include_sender,
             ...this._maybe_get_me_message(is_hidden, message),
             ...this._get_message_edited_vars(message),
@@ -919,7 +907,6 @@ export class MessageListView {
                 ...(pm_with_url && {pm_with_url}),
                 want_date_divider,
                 date_divider_html,
-                mention_classname: null,
                 ...calculated_variables,
                 ...this.get_edited_notice_locations(
                     include_sender,
@@ -1947,8 +1934,8 @@ export class MessageListView {
         just_unsubscribed: boolean,
         can_toggle_subscription: boolean,
         is_spectator: boolean,
-        invite_only: boolean | undefined,
-        is_web_public: boolean | undefined,
+        invite_only: boolean,
+        is_web_public: boolean,
     ): void {
         // This is not the only place we render bookends; see also the
         // partial in message_group.hbs, which do not set is_trailing_bookend.
