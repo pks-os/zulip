@@ -7,7 +7,12 @@ import * as group_permission_settings from "./group_permission_settings";
 import {$t} from "./i18n";
 import {page_params} from "./page_params";
 import * as settings_config from "./settings_config";
-import type {StateData, user_group_schema} from "./state_data";
+import type {
+    GroupPermissionSetting,
+    GroupSettingType,
+    StateData,
+    user_group_schema,
+} from "./state_data";
 import {current_user} from "./state_data";
 import type {UserOrMention} from "./typeahead_helper";
 import type {UserGroupUpdateEvent} from "./types";
@@ -39,7 +44,7 @@ export function init(): void {
 // WE INITIALIZE DATA STRUCTURES HERE!
 init();
 
-export function add(user_group_raw: UserGroupRaw): void {
+export function add(user_group_raw: UserGroupRaw): UserGroup {
     // Reformat the user group members structure to be a set.
     const user_group = {
         description: user_group_raw.description,
@@ -56,6 +61,7 @@ export function add(user_group_raw: UserGroupRaw): void {
 
     user_group_name_dict.set(user_group.name, user_group);
     user_group_by_id_dict.set(user_group.id, user_group);
+    return user_group;
 }
 
 export function remove(user_group: UserGroup): void {
@@ -286,6 +292,28 @@ export function is_user_in_group(user_group_id: number, user_id: number): boolea
     return false;
 }
 
+export function is_user_in_setting_group(
+    setting_group: GroupSettingType,
+    user_id: number,
+): boolean {
+    if (typeof setting_group === "number") {
+        return is_user_in_group(setting_group, user_id);
+    }
+
+    const direct_members = setting_group.direct_members;
+    if (direct_members.includes(user_id)) {
+        return true;
+    }
+
+    const direct_subgroups = setting_group.direct_subgroups;
+    for (const direct_subgroup_id of direct_subgroups) {
+        if (is_user_in_group(direct_subgroup_id, user_id)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function get_display_name_for_system_group_option(setting_name: string, name: string): string {
     // We use a special label for the "Nobody" system group for clarity.
     if (setting_name === "direct_message_permission_group" && name === "Nobody") {
@@ -294,10 +322,45 @@ function get_display_name_for_system_group_option(setting_name: string, name: st
     return name;
 }
 
-export function get_realm_user_groups_for_dropdown_list_widget(
+export function check_system_user_group_allowed_for_setting(
+    group_name: string,
+    group_setting_config: GroupPermissionSetting,
+): boolean {
+    const {
+        allow_internet_group,
+        allow_owners_group,
+        allow_nobody_group,
+        allow_everyone_group,
+        allowed_system_groups,
+    } = group_setting_config;
+
+    if (!allow_internet_group && group_name === "role:internet") {
+        return false;
+    }
+
+    if (!allow_owners_group && group_name === "role:owners") {
+        return false;
+    }
+
+    if (!allow_nobody_group && group_name === "role:nobody") {
+        return false;
+    }
+
+    if (!allow_everyone_group && group_name === "role:everyone") {
+        return false;
+    }
+
+    if (allowed_system_groups.length && !allowed_system_groups.includes(group_name)) {
+        return false;
+    }
+
+    return true;
+}
+
+export function get_realm_user_groups_for_setting(
     setting_name: string,
     setting_type: "realm" | "stream" | "group",
-): UserGroupForDropdownListWidget[] {
+): UserGroup[] {
     const group_setting_config = group_permission_settings.get_group_permission_setting_config(
         setting_name,
         setting_type,
@@ -307,63 +370,53 @@ export function get_realm_user_groups_for_dropdown_list_widget(
         return [];
     }
 
-    const {
-        require_system_group,
-        allow_internet_group,
-        allow_owners_group,
-        allow_nobody_group,
-        allow_everyone_group,
-        allowed_system_groups,
-    } = group_setting_config;
-
     const system_user_groups = settings_config.system_user_groups_list
-        .filter((group) => {
-            if (!allow_internet_group && group.name === "role:internet") {
-                return false;
-            }
-
-            if (!allow_owners_group && group.name === "role:owners") {
-                return false;
-            }
-
-            if (!allow_nobody_group && group.name === "role:nobody") {
-                return false;
-            }
-
-            if (!allow_everyone_group && group.name === "role:everyone") {
-                return false;
-            }
-
-            if (allowed_system_groups.length && !allowed_system_groups.includes(group.name)) {
-                return false;
-            }
-
-            return true;
-        })
+        .filter((group) =>
+            check_system_user_group_allowed_for_setting(group.name, group_setting_config),
+        )
         .map((group) => {
             const user_group = get_user_group_from_name(group.name);
             if (!user_group) {
                 throw new Error(`Unknown group name: ${group.name}`);
             }
-            return {
-                name: get_display_name_for_system_group_option(setting_name, group.display_name),
-                unique_id: user_group.id,
-            };
+            return user_group;
         });
 
     if (
         (setting_name !== "can_mention_group" && !page_params.development_environment) ||
-        require_system_group
+        group_setting_config.require_system_group
     ) {
         return system_user_groups;
     }
 
-    const user_groups_excluding_system_groups = get_realm_user_groups().map((group) => ({
-        name: group.name,
-        unique_id: group.id,
-    }));
+    const user_groups_excluding_system_groups = get_realm_user_groups();
 
     return [...system_user_groups, ...user_groups_excluding_system_groups];
+}
+
+export function get_realm_user_groups_for_dropdown_list_widget(
+    setting_name: string,
+    setting_type: "realm" | "stream" | "group",
+): UserGroupForDropdownListWidget[] {
+    const allowed_setting_groups = get_realm_user_groups_for_setting(setting_name, setting_type);
+
+    return allowed_setting_groups.map((group) => {
+        if (!group.is_system_group) {
+            return {
+                name: group.name,
+                unique_id: group.id,
+            };
+        }
+
+        const display_name = settings_config.system_user_groups_list.find(
+            (system_group) => system_group.name === group.name,
+        )!.display_name;
+
+        return {
+            name: get_display_name_for_system_group_option(setting_name, display_name),
+            unique_id: group.id,
+        };
+    });
 }
 
 // Group name for user-facing display. For settings, we already use
