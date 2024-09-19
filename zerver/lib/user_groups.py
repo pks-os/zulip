@@ -116,7 +116,11 @@ def has_user_group_access(
     if can_edit_all_user_groups:
         return True
 
-    return is_user_in_group(user_group.can_manage_group, user_profile)
+    return user_has_permission_for_group_setting(
+        user_group.can_manage_group,
+        user_profile,
+        NamedUserGroup.GROUP_PERMISSION_SETTINGS["can_manage_group"],
+    )
 
 
 def access_user_group_by_id(
@@ -476,7 +480,7 @@ def get_setting_value_for_user_group_object(
 
 
 def user_groups_in_realm_serialized(
-    realm: Realm, *, allow_deactivated: bool
+    realm: Realm, *, include_deactivated_groups: bool
 ) -> list[UserGroupDict]:
     """This function is used in do_events_register code path so this code
     should be performant.  We need to do 2 database queries because
@@ -490,7 +494,7 @@ def user_groups_in_realm_serialized(
         "can_mention_group__named_user_group",
     ).filter(realm=realm)
 
-    if not allow_deactivated:
+    if not include_deactivated_groups:
         realm_groups = realm_groups.filter(deactivated=False)
 
     membership = UserGroupMembership.objects.filter(user_group__realm=realm).values_list(
@@ -621,6 +625,19 @@ def get_recursive_membership_groups(user_profile: UserProfile) -> QuerySet[UserG
         )
     )
     return cte.join(UserGroup, id=cte.col.group_id).with_cte(cte)
+
+
+def user_has_permission_for_group_setting(
+    user_group: UserGroup,
+    user: UserProfile,
+    setting_config: GroupPermissionSetting,
+    *,
+    direct_member_only: bool = False,
+) -> bool:
+    if not setting_config.allow_everyone_group and user.is_guest:
+        return False
+
+    return is_user_in_group(user_group, user, direct_member_only=direct_member_only)
 
 
 def is_user_in_group(
