@@ -13,7 +13,7 @@ import type {
     StateData,
     user_group_schema,
 } from "./state_data";
-import {current_user} from "./state_data";
+import {current_user, realm} from "./state_data";
 import type {UserOrMention} from "./typeahead_helper";
 import type {UserGroupUpdateEvent} from "./types";
 
@@ -131,6 +131,14 @@ export function get_realm_user_groups(include_deactivated = false): UserGroup[] 
 
         return true;
     });
+}
+
+// This is only used for testing currently, but would be used in
+// future when we use system groups more and probably show them
+// in the UI as well.
+export function get_all_realm_user_groups(): UserGroup[] {
+    const user_groups = [...user_group_by_id_dict.values()].sort((a, b) => a.id - b.id);
+    return user_groups;
 }
 
 export function get_user_groups_allowed_to_mention(): UserGroup[] {
@@ -342,6 +350,7 @@ function get_display_name_for_system_group_option(setting_name: string, name: st
 export function check_system_user_group_allowed_for_setting(
     group_name: string,
     group_setting_config: GroupPermissionSetting,
+    for_new_settings_ui: boolean,
 ): boolean {
     const {
         allow_internet_group,
@@ -359,7 +368,7 @@ export function check_system_user_group_allowed_for_setting(
         return false;
     }
 
-    if (!allow_nobody_group && group_name === "role:nobody") {
+    if ((!allow_nobody_group || for_new_settings_ui) && group_name === "role:nobody") {
         return false;
     }
 
@@ -371,12 +380,25 @@ export function check_system_user_group_allowed_for_setting(
         return false;
     }
 
+    if (
+        group_name === "role:fullmembers" &&
+        for_new_settings_ui &&
+        realm.realm_waiting_period_threshold === 0
+    ) {
+        // We hide the full members group in the typeahead when
+        // there is no separation between member and full member
+        // users due to organization not having set a waiting
+        // period for member users to become full members.
+        return false;
+    }
+
     return true;
 }
 
 export function get_realm_user_groups_for_setting(
     setting_name: string,
     setting_type: "realm" | "stream" | "group",
+    for_new_settings_ui = false,
 ): UserGroup[] {
     const group_setting_config = group_permission_settings.get_group_permission_setting_config(
         setting_name,
@@ -389,7 +411,11 @@ export function get_realm_user_groups_for_setting(
 
     const system_user_groups = settings_config.system_user_groups_list
         .filter((group) =>
-            check_system_user_group_allowed_for_setting(group.name, group_setting_config),
+            check_system_user_group_allowed_for_setting(
+                group.name,
+                group_setting_config,
+                for_new_settings_ui,
+            ),
         )
         .map((group) => {
             const user_group = get_user_group_from_name(group.name);
@@ -427,7 +453,7 @@ export function get_realm_user_groups_for_dropdown_list_widget(
 
         const display_name = settings_config.system_user_groups_list.find(
             (system_group) => system_group.name === group.name,
-        )!.display_name;
+        )!.dropdown_option_name;
 
         return {
             name: get_display_name_for_system_group_option(setting_name, display_name),
@@ -436,14 +462,14 @@ export function get_realm_user_groups_for_dropdown_list_widget(
     });
 }
 
-// Group name for user-facing display. For settings, we already use
-// description strings for system groups. But those description strings
-// might not be suitable for every case, e.g. we want the name for
-// `role:everyone` to be `Everyone` instead of
-// `Admins, moderators, members and guests` from `settings_config`.
-// Right now, we only change the name for `role:everyone`, that's why
-// we don't store the values in a structured way like
-// `settings_config` yet.
-export function get_display_group_name(user_group: UserGroup): string {
-    return user_group.name === "role:everyone" ? $t({defaultMessage: "Everyone"}) : user_group.name;
+export function get_display_group_name(group_name: string): string {
+    const group = settings_config.system_user_groups_list.find(
+        (system_group) => system_group.name === group_name,
+    );
+
+    if (group === undefined) {
+        return group_name;
+    }
+
+    return group.display_name;
 }

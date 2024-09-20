@@ -239,6 +239,9 @@ def normalize_fixture_data(
 
     # We'll replace "invoice_prefix": "A35BC4Q" with something like "invoice_prefix": "NORMA01"
     pattern_translations = {
+        r'"exp_month": ([0-9]+)': "1",
+        r'"exp_year": ([0-9]+)': "9999",
+        r'"postal_code": "([0-9]+)"': "12345",
         r'"invoice_prefix": "([A-Za-z0-9]{7,8})"': "NORMALIZED",
         r'"fingerprint": "([A-Za-z0-9]{16})"': "NORMALIZED",
         r'"number": "([A-Za-z0-9]{7,8}-[A-Za-z0-9]{4})"': "NORMALIZED",
@@ -2798,14 +2801,23 @@ class StripeTest(StripeTestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response["Location"], "http://zulip.testserver/sponsorship")
 
+        stripe_customer_id = "cus_123"
         # Avoid contacting stripe as we only want to check redirects here.
-        with patch(
-            "corporate.lib.stripe.customer_has_credit_card_as_default_payment_method",
-            return_value=False,
+        with (
+            patch(
+                "corporate.lib.stripe.customer_has_credit_card_as_default_payment_method",
+                return_value=False,
+            ),
+            patch(
+                "stripe.Customer.retrieve",
+                return_value=Mock(id=stripe_customer_id, email="test@zulip.com"),
+            ),
         ):
             user.realm.plan_type = Realm.PLAN_TYPE_LIMITED
             user.realm.save()
-            customer = Customer.objects.create(realm=user.realm, stripe_customer_id="cus_123")
+            customer = Customer.objects.create(
+                realm=user.realm, stripe_customer_id=stripe_customer_id
+            )
             response = self.client_get("/upgrade/")
             self.assertEqual(response.status_code, 200)
 
