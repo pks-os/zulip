@@ -68,6 +68,7 @@ import * as util from "./util";
 type SlashCommand = {
     text: string;
     name: string;
+    info: string;
     aliases: NamedCurve;
     placeholder?: string;
 };
@@ -484,7 +485,8 @@ export function broadcast_mentions(): PseudoMentionUser[] {
     }
 
     return wildcard_mention_array.map((mention, idx) => ({
-        special_item_text: `${mention} (${get_wildcard_string(mention)})`,
+        special_item_text: mention,
+        secondary_text: get_wildcard_string(mention),
         email: mention,
 
         // Always sort above, under the assumption that names will
@@ -527,35 +529,40 @@ function should_show_custom_query(query: string, items: string[]): boolean {
 
 export const dev_only_slash_commands = [
     {
-        text: $t({defaultMessage: "/dark (Switch to the dark theme)"}),
+        text: $t({defaultMessage: "/dark"}),
         name: "dark",
         aliases: "night",
+        info: $t({defaultMessage: "Switch to the dark theme"}),
     },
     {
-        text: $t({defaultMessage: "/light (Switch to light theme)"}),
+        text: $t({defaultMessage: "/light"}),
         name: "light",
         aliases: "day",
+        info: $t({defaultMessage: "Switch to light theme"}),
     },
 ];
 
 export const slash_commands = [
     {
-        text: $t({defaultMessage: "/me (Action message)"}),
+        text: $t({defaultMessage: "/me"}),
         name: "me",
         aliases: "",
         placeholder: $t({defaultMessage: "is …"}),
+        info: $t({defaultMessage: "Action message"}),
     },
     {
-        text: $t({defaultMessage: "/poll (Create a poll)"}),
+        text: $t({defaultMessage: "/poll"}),
         name: "poll",
         aliases: "",
         placeholder: $t({defaultMessage: "Question"}),
+        info: $t({defaultMessage: "Create a poll"}),
     },
     {
-        text: $t({defaultMessage: "/todo (Create a collaborative to-do list)"}),
+        text: $t({defaultMessage: "/todo"}),
         name: "todo",
         aliases: "",
         placeholder: $t({defaultMessage: "Task list"}),
+        info: $t({defaultMessage: "Create a collaborative to-do list"}),
     },
 ];
 
@@ -589,11 +596,22 @@ export function get_pm_people(query: string): (UserGroupPillData | UserPillData)
         filter_groups_for_guests: true,
     };
     const suggestions = get_person_suggestions(query, opts);
+    const current_user_ids = compose_pm_pill.get_user_ids();
+    const my_user_id = people.my_current_user_id();
     // We know these aren't mentions because `want_broadcast` was `false`.
     // TODO: In the future we should separate user and mention so we don't have
     // to do this.
     const user_suggestions: (UserGroupPillData | UserPillData)[] = [];
     for (const suggestion of suggestions) {
+        if (
+            suggestion.type === "user" &&
+            suggestion.user.user_id === my_user_id &&
+            current_user_ids.length > 0
+        ) {
+            // We don't show current user in typeahead suggestion if recipient
+            // box already has a user pill to avoid fading conversation
+            continue;
+        }
         assert(suggestion.type !== "broadcast");
         user_suggestions.push(suggestion);
     }
@@ -974,6 +992,7 @@ export function content_highlighter_html(item: TypeaheadSuggestion): string | un
         case "slash":
             return typeahead_helper.render_typeahead_item({
                 primary: item.text,
+                secondary: item.info,
             });
         case "stream":
             return typeahead_helper.render_stream(item);
@@ -1305,7 +1324,9 @@ export function initialize({
 }: {
     on_enter_send: (scheduling_message?: boolean) => boolean | undefined;
 }): void {
-    // These handlers are at the "form" level so that they are called after typeahead
+    // Attach event handlers to `form` instead of `textarea` to allow
+    // typeahead to call stopPropagation if it can handle the event
+    // and prevent the form from submitting.
     $("form#send_message_form").on("keydown", (e) => {
         handle_keydown(e, on_enter_send);
     });

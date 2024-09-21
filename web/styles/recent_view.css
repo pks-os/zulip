@@ -484,13 +484,12 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            /* To accommodate fa-group icon */
+            /* To accommodate zulip-icon-triple-users icon */
             width: 14px;
             height: 14px;
 
-            .fa-group,
+            .zulip-icon.zulip-icon-triple-users,
             .zulip-icon.zulip-icon-bot {
-                font-size: 0.8rem;
                 opacity: 0.6;
             }
 

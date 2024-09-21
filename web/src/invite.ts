@@ -228,13 +228,10 @@ function generate_multiuse_invite(): void {
 
             clipboard.on("success", () => {
                 const tippy_timeout_in_ms = 800;
-                show_copied_confirmation(
-                    util.the($("#copy_generated_invite_link")),
-                    () => {
-                        // Do nothing on hide
-                    },
-                    tippy_timeout_in_ms,
-                );
+                show_copied_confirmation(util.the($("#copy_generated_invite_link")), {
+                    show_check_icon: true,
+                    timeout_in_ms: tippy_timeout_in_ms,
+                });
             });
         },
         error(xhr) {

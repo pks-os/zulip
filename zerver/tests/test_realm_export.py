@@ -1,11 +1,13 @@
 import os
 from unittest.mock import patch
+from urllib.parse import urlsplit
 
 import botocore.exceptions
 from django.conf import settings
 from django.utils.timezone import now as timezone_now
 
 from analytics.models import RealmCount
+from zerver.actions.user_settings import do_change_user_setting
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.queue import queue_json_publish
 from zerver.lib.test_classes import ZulipTestCase
@@ -16,7 +18,7 @@ from zerver.lib.test_helpers import (
     stdout_suppressed,
     use_s3_backend,
 )
-from zerver.models import Realm, RealmAuditLog
+from zerver.models import Realm, RealmAuditLog, UserProfile
 from zerver.models.realm_audit_logs import AuditLogEventType
 from zerver.views.realm_export import export_realm
 
@@ -41,7 +43,7 @@ class RealmExportTest(ZulipTestCase):
     def test_endpoint_s3(self) -> None:
         admin = self.example_user("iago")
         self.login_user(admin)
-        bucket = create_s3_buckets(settings.S3_AVATAR_BUCKET)[0]
+        bucket = create_s3_buckets(settings.S3_EXPORT_BUCKET)[0]
         tarball_path = create_dummy_file("test-export.tar.gz")
 
         # Test the export logic.
@@ -81,9 +83,10 @@ class RealmExportTest(ZulipTestCase):
         # Test that the export we have is the export we created.
         export_dict = response_dict["exports"]
         self.assertEqual(export_dict[0]["id"], audit_log_entry.id)
+        parsed_url = urlsplit(export_dict[0]["export_url"])
         self.assertEqual(
-            export_dict[0]["export_url"],
-            "https://test-avatar-bucket.s3.amazonaws.com" + export_path,
+            parsed_url._replace(query="").geturl(),
+            "https://test-export-bucket.s3.amazonaws.com" + export_path,
         )
         self.assertEqual(export_dict[0]["acting_user_id"], admin.id)
         self.assert_length(
@@ -323,3 +326,30 @@ class RealmExportTest(ZulipTestCase):
             result,
             f"Please request a manual export from {settings.ZULIP_ADMINISTRATOR}.",
         )
+
+    def test_get_users_export_consents(self) -> None:
+        admin = self.example_user("iago")
+        self.login_user(admin)
+
+        # By default, export consent is set to False.
+        self.assertFalse(
+            UserProfile.objects.filter(
+                realm=admin.realm, is_active=True, is_bot=False, allow_private_data_export=True
+            ).exists()
+        )
+
+        # Hamlet and Aaron consented to export their private data.
+        hamlet = self.example_user("hamlet")
+        aaron = self.example_user("aaron")
+        for user in [hamlet, aaron]:
+            do_change_user_setting(user, "allow_private_data_export", True, acting_user=None)
+
+        # Verify export consents of users.
+        result = self.client_get("/json/export/realm/consents")
+        response_dict = self.assert_json_success(result)
+        export_consents = response_dict["export_consents"]
+        for export_consent in export_consents:
+            if export_consent["user_id"] in [hamlet.id, aaron.id]:
+                self.assertTrue(export_consent["consented"])
+                continue
+            self.assertFalse(export_consent["consented"])

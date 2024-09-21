@@ -449,15 +449,15 @@ function create_copy_to_clipboard_handler(
     });
 
     clipboard.on("success", () => {
-        // Hide the Tippy and source box after a 600ms delay
-        const tippy_timeout_in_ms = 600;
-        show_copied_confirmation(
-            the($row.find(".copy_message")),
-            () => {
+        // Hide the Tippy and source box after a 1000ms delay
+        const tippy_timeout_in_ms = 1000;
+        show_copied_confirmation(the($row.find(".copy_message")), {
+            show_check_icon: true,
+            timeout_in_ms: tippy_timeout_in_ms,
+            on_hide_callback() {
                 end_message_row_edit($row);
             },
-            tippy_timeout_in_ms,
-        );
+        });
     });
 }
 
@@ -508,7 +508,10 @@ function edit_message($row: JQuery, raw_content: string): void {
     currently_editing_messages.set(message.id, $message_edit_content);
     message_lists.current.show_edit_message($row, $form);
 
-    $message_edit_content.on("keydown", (e) => {
+    // Attach event handlers to `form` instead of `textarea` to allow
+    // typeahead to call stopPropagation if it can handle the event
+    // and prevent the form from submitting.
+    $form.on("keydown", (e) => {
         if (keydown_util.is_enter_event(e)) {
             handle_message_edit_enter(e, $message_edit_content);
         }

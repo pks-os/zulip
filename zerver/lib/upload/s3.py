@@ -13,7 +13,8 @@ from botocore.client import Config
 from botocore.response import StreamingBody
 from django.conf import settings
 from django.utils.http import content_disposition_header
-from mypy_boto3_s3.service_resource import Bucket
+from mypy_boto3_s3.client import S3Client
+from mypy_boto3_s3.service_resource import Bucket, Object
 from typing_extensions import override
 
 from zerver.lib.partial import partial
@@ -111,8 +112,20 @@ def upload_content_to_s3(
     )
 
 
+BOTO_CLIENT: S3Client | None = None
+
+
+def get_boto_client() -> S3Client:
+    """
+    Creating the client takes a long time so we need to cache it.
+    """
+    global BOTO_CLIENT
+    if BOTO_CLIENT is None:
+        BOTO_CLIENT = get_bucket(settings.S3_AUTH_UPLOADS_BUCKET).meta.client
+    return BOTO_CLIENT
+
+
 def get_signed_upload_url(path: str, force_download: bool = False) -> str:
-    client = get_bucket(settings.S3_AUTH_UPLOADS_BUCKET).meta.client
     params = {
         "Bucket": settings.S3_AUTH_UPLOADS_BUCKET,
         "Key": path,
@@ -120,7 +133,7 @@ def get_signed_upload_url(path: str, force_download: bool = False) -> str:
     if force_download:
         params["ResponseContentDisposition"] = "attachment"
 
-    return client.generate_presigned_url(
+    return get_boto_client().generate_presigned_url(
         ClientMethod="get_object",
         Params=params,
         ExpiresIn=SIGNED_UPLOAD_URL_DURATION,
@@ -132,6 +145,10 @@ class S3UploadBackend(ZulipUploadBackend):
     def __init__(self) -> None:
         self.avatar_bucket = get_bucket(settings.S3_AVATAR_BUCKET)
         self.uploads_bucket = get_bucket(settings.S3_AUTH_UPLOADS_BUCKET)
+        self.export_bucket: Bucket | None = None
+        if settings.S3_EXPORT_BUCKET:
+            self.export_bucket = get_bucket(settings.S3_EXPORT_BUCKET)
+
         self.public_upload_url_base = self.construct_public_upload_url_base()
 
     def delete_file_from_s3(self, path_id: str, bucket: Bucket) -> bool:
@@ -415,33 +432,67 @@ class S3UploadBackend(ZulipUploadBackend):
 
     @override
     def get_export_tarball_url(self, realm: Realm, export_path: str) -> str:
-        # export_path has a leading /
-        return self.get_public_upload_url(export_path.removeprefix("/"))
+        export_path = export_path.removeprefix("/")
+        if self.export_bucket:
+            # Fix old data if the row was created when an export bucket was not in use.
+            export_path = export_path.removeprefix("exports/")
+            client = self.export_bucket.meta.client
+            return client.generate_presigned_url(
+                ClientMethod="get_object",
+                Params={
+                    "Bucket": self.export_bucket.name,
+                    "Key": export_path,
+                },
+                # Expires in one week, the longest allowed by AWS
+                ExpiresIn=60 * 60 * 24 * 7,
+            )
+        else:
+            if not export_path.startswith("exports/"):
+                export_path = "exports/" + export_path
+            client = self.avatar_bucket.meta.client
+            signed_url = client.generate_presigned_url(
+                ClientMethod="get_object",
+                Params={
+                    "Bucket": self.avatar_bucket.name,
+                    "Key": export_path,
+                },
+                ExpiresIn=0,
+            )
+            # Strip off the signing query parameters, since this URL is public
+            return urlsplit(signed_url)._replace(query="").geturl()
+
+    def export_object(self, tarball_path: str) -> Object:
+        if self.export_bucket:
+            return self.export_bucket.Object(
+                os.path.join(secrets.token_hex(16), os.path.basename(tarball_path))
+            )
+        else:
+            # We fall back to the avatar bucket, because it's world-readable.
+            return self.avatar_bucket.Object(
+                os.path.join("exports", secrets.token_hex(16), os.path.basename(tarball_path))
+            )
 
     @override
     def upload_export_tarball(
         self,
-        realm: Realm | None,
+        realm: Realm,
         tarball_path: str,
         percent_callback: Callable[[Any], None] | None = None,
     ) -> str:
-        # We use the avatar bucket, because it's world-readable.
-        key = self.avatar_bucket.Object(
-            os.path.join("exports", secrets.token_hex(16), os.path.basename(tarball_path))
-        )
+        key = self.export_object(tarball_path)
 
         if percent_callback is None:
             key.upload_file(Filename=tarball_path)
         else:
             key.upload_file(Filename=tarball_path, Callback=percent_callback)
 
-        public_url = self.get_public_upload_url(key.key)
-        return public_url
+        return self.get_export_tarball_url(realm, key.key)
 
     @override
     def delete_export_tarball(self, export_path: str) -> str | None:
         assert export_path.startswith("/")
         path_id = export_path.removeprefix("/")
-        if self.delete_file_from_s3(path_id, self.avatar_bucket):
+        bucket = self.export_bucket or self.avatar_bucket
+        if self.delete_file_from_s3(path_id, bucket):
             return export_path
         return None
