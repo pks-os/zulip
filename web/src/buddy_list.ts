@@ -157,8 +157,8 @@ export class BuddyList extends BuddyListConf {
     render_data = get_render_data();
     // This is a bit of a hack to make sure we at least have
     // an empty list to start, before we get the initial payload.
-    $users_matching_view_container = $(this.matching_view_list_selector);
-    $other_users_container = $(this.other_user_list_selector);
+    $users_matching_view_list = $(this.matching_view_list_selector);
+    $other_users_list = $(this.other_user_list_selector);
 
     initialize_tooltips(): void {
         $("#right-sidebar").on(
@@ -242,9 +242,9 @@ export class BuddyList extends BuddyListConf {
 
     populate(opts: {all_user_ids: number[]}): void {
         this.render_count = 0;
-        this.$users_matching_view_container.empty();
+        this.$users_matching_view_list.empty();
         this.users_matching_view_ids = [];
-        this.$other_users_container.empty();
+        this.$other_users_list.empty();
         this.other_user_ids = [];
 
         // Reset data to be relevant for this current view.
@@ -449,31 +449,29 @@ export class BuddyList extends BuddyListConf {
             }
         }
 
-        // Remove the empty list message before adding users
-        if (
-            $(`${this.matching_view_list_selector} .empty-list-message`).length > 0 &&
-            subscribed_users.length
-        ) {
-            this.$users_matching_view_container.empty();
+        this.$users_matching_view_list = $(this.matching_view_list_selector);
+        if (subscribed_users.length) {
+            // Remove the empty list message before adding users
+            if ($(`${this.matching_view_list_selector} .empty-list-message`).length > 0) {
+                this.$users_matching_view_list.empty();
+            }
+            const subscribed_users_html = this.items_to_html({
+                items: subscribed_users,
+            });
+            this.$users_matching_view_list.append($(subscribed_users_html));
         }
-        const subscribed_users_html = this.items_to_html({
-            items: subscribed_users,
-        });
-        this.$users_matching_view_container = $(this.matching_view_list_selector);
-        this.$users_matching_view_container.append($(subscribed_users_html));
 
-        // Remove the empty list message before adding users
-        if (
-            $(`${this.other_user_list_selector} .empty-list-message`).length > 0 &&
-            other_users.length
-        ) {
-            this.$other_users_container.empty();
+        this.$other_users_list = $(this.other_user_list_selector);
+        if (other_users.length) {
+            // Remove the empty list message before adding users
+            if ($(`${this.other_user_list_selector} .empty-list-message`).length > 0) {
+                this.$other_users_list.empty();
+            }
+            const other_users_html = this.items_to_html({
+                items: other_users,
+            });
+            this.$other_users_list.append($(other_users_html));
         }
-        const other_users_html = this.items_to_html({
-            items: other_users,
-        });
-        this.$other_users_container = $(this.other_user_list_selector);
-        this.$other_users_container.append($(other_users_html));
 
         // Invariant: more_user_ids.length >= items.length.
         // (Usually they're the same, but occasionally user ids
@@ -602,17 +600,19 @@ export class BuddyList extends BuddyListConf {
     }
 
     maybe_remove_user_id(opts: {user_id: number}): void {
-        let pos = this.users_matching_view_ids.indexOf(opts.user_id);
-        if (pos >= 0) {
-            this.users_matching_view_ids.splice(pos, 1);
-        } else {
-            pos = this.other_user_ids.indexOf(opts.user_id);
-            if (pos < 0) {
-                return;
+        let was_removed = false;
+        for (const user_id_list of [this.users_matching_view_ids, this.other_user_ids]) {
+            const pos = user_id_list.indexOf(opts.user_id);
+            if (pos >= 0) {
+                user_id_list.splice(pos, 1);
+                was_removed = true;
+                break;
             }
-            this.other_user_ids.splice(pos, 1);
         }
-        pos = this.all_user_ids.indexOf(opts.user_id);
+        if (!was_removed) {
+            return;
+        }
+        const pos = this.all_user_ids.indexOf(opts.user_id);
         this.all_user_ids.splice(pos, 1);
 
         if (pos < this.render_count) {
@@ -707,9 +707,9 @@ export class BuddyList extends BuddyListConf {
         // This means we're inserting at the end
         if (user_id_following_insertion === undefined) {
             if (is_subscribed_user) {
-                this.$users_matching_view_container.append($(html));
+                this.$users_matching_view_list.append($(html));
             } else {
-                this.$other_users_container.append($(html));
+                this.$other_users_list.append($(html));
             }
         } else {
             const $li = this.find_li({key: user_id_following_insertion});

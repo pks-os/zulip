@@ -1940,25 +1940,23 @@ def do_write_stats_file_for_realm_export(output_dir: Path) -> None:
     attachment_file = os.path.join(output_dir, "attachment.json")
     analytics_file = os.path.join(output_dir, "analytics.json")
     message_files = glob.glob(os.path.join(output_dir, "messages-*.json"))
-    fns = sorted([analytics_file, attachment_file, *message_files, realm_file])
+    filenames = sorted([analytics_file, attachment_file, *message_files, realm_file])
 
     logging.info("Writing stats file: %s\n", stats_file)
     with open(stats_file, "w") as f:
-        for fn in fns:
-            f.write(os.path.basename(fn) + "\n")
-            with open(fn, "rb") as filename:
-                data = orjson.loads(filename.read())
+        for filename in filenames:
+            f.write(os.path.basename(filename) + "\n")
+            with open(filename, "rb") as json_file:
+                data = orjson.loads(json_file.read())
             for k in sorted(data):
                 f.write(f"{len(data[k]):5} {k}\n")
             f.write("\n")
 
-        avatar_file = os.path.join(output_dir, "avatars/records.json")
-        uploads_file = os.path.join(output_dir, "uploads/records.json")
-
-        for fn in [avatar_file, uploads_file]:
-            f.write(fn + "\n")
-            with open(fn, "rb") as filename:
-                data = orjson.loads(filename.read())
+        for category in ["avatars", "uploads", "emoji", "realm_icons"]:
+            filename = os.path.join(output_dir, category, "records.json")
+            f.write(f"{category}/records.json\n")
+            with open(filename, "rb") as json_file:
+                data = orjson.loads(json_file.read())
             f.write(f"{len(data):5} records\n")
             f.write("\n")
 
@@ -2481,7 +2479,7 @@ def export_realm_wrapper(
     return public_url
 
 
-def get_realm_exports_serialized(user: UserProfile) -> list[dict[str, Any]]:
+def get_realm_exports_serialized(realm: Realm) -> list[dict[str, Any]]:
     # Exclude exports made via shell. 'acting_user=None', since they
     # aren't supported in the current API format.
     #
@@ -2489,7 +2487,7 @@ def get_realm_exports_serialized(user: UserProfile) -> list[dict[str, Any]]:
     # appropriate way to express for who issued them; this requires an
     # API change.
     all_exports = RealmAuditLog.objects.filter(
-        realm=user.realm, event_type=AuditLogEventType.REALM_EXPORTED
+        realm=realm, event_type=AuditLogEventType.REALM_EXPORTED
     ).exclude(acting_user=None)
     exports_dict = {}
     for export in all_exports:
@@ -2507,9 +2505,7 @@ def get_realm_exports_serialized(user: UserProfile) -> list[dict[str, Any]]:
         pending = deleted_timestamp is None and failed_timestamp is None and export_path is None
 
         if export_path is not None and not deleted_timestamp:
-            export_url = zerver.lib.upload.upload_backend.get_export_tarball_url(
-                user.realm, export_path
-            )
+            export_url = zerver.lib.upload.upload_backend.get_export_tarball_url(realm, export_path)
 
         assert acting_user is not None
         exports_dict[export.id] = dict(
