@@ -4,8 +4,7 @@ import assert from "minimalistic-assert";
 
 import * as blueslip from "./blueslip";
 import * as compose_tooltips from "./compose_tooltips";
-import type {Filter} from "./filter";
-import {MessageListData} from "./message_list_data";
+import type {MessageListData} from "./message_list_data";
 import * as message_list_tooltips from "./message_list_tooltips";
 import {MessageListView} from "./message_list_view";
 import type {Message} from "./message_store";
@@ -19,7 +18,7 @@ import {user_settings} from "./user_settings";
 
 export type RenderInfo = {need_user_to_scroll: boolean};
 
-type SelectIdOpts = {
+export type SelectIdOpts = {
     then_scroll?: boolean;
     target_scroll_offset?: number;
     use_closest?: boolean;
@@ -46,6 +45,11 @@ export class MessageList {
     static id_counter = 0;
 
     id: number;
+    // The MessageListData keeps track of the actual sequence of
+    // messages displayed by this MessageList. Most
+    // configuration/logic questions in this module will be
+    // answered by calling a function from the MessageListData,
+    // its Filter, or its FetchStatus object.
     data: MessageListData;
     // The MessageListView object that is responsible for
     // maintaining this message feed's HTML representation in the
@@ -68,28 +72,12 @@ export class MessageList {
 
     constructor(opts: {
         data: MessageListData;
-        filter: Filter;
-        excludes_muted_topics: boolean;
-        is_node_test: boolean;
+        excludes_muted_topics?: boolean;
+        is_node_test?: boolean;
     }) {
         MessageList.id_counter += 1;
         this.id = MessageList.id_counter;
-        // The MessageListData keeps track of the actual sequence of
-        // messages displayed by this MessageList. Most
-        // configuration/logic questions in this module will be
-        // answered by calling a function from the MessageListData,
-        // its Filter, or its FetchStatus object.
-        if (opts.data) {
-            this.data = opts.data;
-        } else {
-            const filter = opts.filter;
-
-            this.data = new MessageListData({
-                excludes_muted_topics: opts.excludes_muted_topics,
-                filter,
-            });
-        }
-
+        this.data = opts.data;
         this.data.set_rendered_message_list_id(this.id);
 
         // TODO: This property should likely just be inlined into

@@ -105,9 +105,16 @@ class Database:
             "./manage.py",
         ]
 
-        run([*manage_py, "migrate", "--no-input"])
+        run([*manage_py, "migrate", "--skip-checks", "--no-input"])
 
-        run([*manage_py, "get_migration_status", "--output=" + self.migration_status_file])
+        run(
+            [
+                *manage_py,
+                "get_migration_status",
+                "--skip-checks",
+                "--output=" + self.migration_status_file,
+            ]
+        )
 
     def what_to_do_with_migrations(self) -> str:
         status_fn = self.migration_status_path
@@ -309,6 +316,7 @@ def get_migration_status(**options: Any) -> str:
         no_color=options.get("no_color", False),
         settings=options.get("settings", os.environ["DJANGO_SETTINGS_MODULE"]),
         stdout=out,
+        skip_checks=options.get("skip_checks", True),
         traceback=options.get("traceback", True),
         verbosity=verbosity,
     )

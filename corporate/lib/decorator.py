@@ -1,6 +1,7 @@
+import inspect
 from collections.abc import Callable
 from functools import wraps
-from typing import Concatenate
+from typing import TYPE_CHECKING, Concatenate
 from urllib.parse import urlencode, urljoin
 
 from django.conf import settings
@@ -14,11 +15,13 @@ from corporate.lib.remote_billing_util import (
     get_remote_realm_and_user_from_session,
     get_remote_server_and_user_from_session,
 )
-from corporate.lib.stripe import RemoteRealmBillingSession, RemoteServerBillingSession
 from zerver.lib.exceptions import RemoteBillingAuthenticationError
 from zerver.lib.subdomains import get_subdomain
 from zerver.lib.url_encoding import append_url_query_string
 from zilencer.models import RemoteRealm
+
+if TYPE_CHECKING:
+    from corporate.lib.stripe import RemoteRealmBillingSession, RemoteServerBillingSession
 
 ParamT = ParamSpec("ParamT")
 
@@ -53,7 +56,9 @@ def self_hosting_management_endpoint(
 
 
 def authenticated_remote_realm_management_endpoint(
-    view_func: Callable[Concatenate[HttpRequest, RemoteRealmBillingSession, ParamT], HttpResponse],
+    view_func: Callable[
+        Concatenate[HttpRequest, "RemoteRealmBillingSession", ParamT], HttpResponse
+    ],
 ) -> Callable[Concatenate[HttpRequest, ParamT], HttpResponse]:
     @wraps(view_func)
     def _wrapped_view_func(
@@ -62,10 +67,12 @@ def authenticated_remote_realm_management_endpoint(
         *args: ParamT.args,
         **kwargs: ParamT.kwargs,
     ) -> HttpResponse:
+        from corporate.lib.stripe import RemoteRealmBillingSession
+
         if not is_self_hosting_management_subdomain(request):  # nocoverage
             return render(request, "404.html", status=404)
 
-        realm_uuid = kwargs.get("realm_uuid")
+        realm_uuid = kwargs.pop("realm_uuid")
         if realm_uuid is not None and not isinstance(realm_uuid, str):  # nocoverage
             raise TypeError("realm_uuid must be a string or None")
 
@@ -124,7 +131,16 @@ def authenticated_remote_realm_management_endpoint(
         billing_session = RemoteRealmBillingSession(
             remote_realm, remote_billing_user=remote_billing_user
         )
-        return view_func(request, billing_session)
+        return view_func(request, billing_session, *args, **kwargs)
+
+    signature = inspect.signature(view_func)
+    request_parameter, billing_session_parameter, *other_parameters = signature.parameters.values()
+    _wrapped_view_func.__signature__ = signature.replace(  # type: ignore[attr-defined] # too magic
+        parameters=[request_parameter, *other_parameters]
+    )
+    _wrapped_view_func.__annotations__ = {
+        k: v for k, v in view_func.__annotations__.items() if k != billing_session_parameter.name
+    }
 
     return _wrapped_view_func
 
@@ -150,7 +166,9 @@ def get_next_page_param_from_request_path(request: HttpRequest) -> str | None:
 
 
 def authenticated_remote_server_management_endpoint(
-    view_func: Callable[Concatenate[HttpRequest, RemoteServerBillingSession, ParamT], HttpResponse],
+    view_func: Callable[
+        Concatenate[HttpRequest, "RemoteServerBillingSession", ParamT], HttpResponse
+    ],
 ) -> Callable[Concatenate[HttpRequest, ParamT], HttpResponse]:
     @wraps(view_func)
     def _wrapped_view_func(
@@ -159,10 +177,12 @@ def authenticated_remote_server_management_endpoint(
         *args: ParamT.args,
         **kwargs: ParamT.kwargs,
     ) -> HttpResponse:
+        from corporate.lib.stripe import RemoteServerBillingSession
+
         if not is_self_hosting_management_subdomain(request):  # nocoverage
             return render(request, "404.html", status=404)
 
-        server_uuid = kwargs.get("server_uuid")
+        server_uuid = kwargs.pop("server_uuid")
         if not isinstance(server_uuid, str):
             raise TypeError("server_uuid must be a string")  # nocoverage
 
@@ -196,6 +216,15 @@ def authenticated_remote_server_management_endpoint(
         billing_session = RemoteServerBillingSession(
             remote_server, remote_billing_user=remote_billing_user
         )
-        return view_func(request, billing_session)
+        return view_func(request, billing_session, *args, **kwargs)
+
+    signature = inspect.signature(view_func)
+    request_parameter, billing_session_parameter, *other_parameters = signature.parameters.values()
+    _wrapped_view_func.__signature__ = signature.replace(  # type: ignore[attr-defined] # too magic
+        parameters=[request_parameter, *other_parameters]
+    )
+    _wrapped_view_func.__annotations__ = {
+        k: v for k, v in view_func.__annotations__.items() if k != billing_session_parameter.name
+    }
 
     return _wrapped_view_func
