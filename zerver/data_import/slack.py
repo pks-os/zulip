@@ -3,6 +3,7 @@ import logging
 import os
 import posixpath
 import random
+import re
 import secrets
 import shutil
 import zipfile
@@ -11,7 +12,7 @@ from collections.abc import Iterator
 from datetime import datetime, timezone
 from email.headerregistry import Address
 from typing import Any, TypeAlias, TypeVar
-from urllib.parse import urlsplit
+from urllib.parse import SplitResult, urlsplit
 
 import orjson
 import requests
@@ -1364,46 +1365,72 @@ def fetch_team_icons(
     return records
 
 
-def do_convert_data(
+def do_convert_zipfile(
     original_path: str,
     output_dir: str,
     token: str,
     threads: int = 6,
     convert_slack_threads: bool = False,
 ) -> None:
-    # Subdomain is set by the user while running the import command
-    realm_subdomain = ""
-    realm_id = 0
-    domain_name = settings.EXTERNAL_HOST
+    assert original_path.endswith(".zip")
+    slack_data_dir = original_path.removesuffix(".zip")
+    try:
+        os.makedirs(slack_data_dir, exist_ok=True)
 
+        with zipfile.ZipFile(original_path) as zipObj:
+            total_size = 0
+            for fileinfo in zipObj.infolist():
+                # Slack's export doesn't set the UTF-8 flag on each
+                # filename entry, despite encoding them as such, so
+                # zipfile mojibake's the output.  Explicitly re-interpret
+                # it as UTF-8 misdecoded as cp437, the default.
+                fileinfo.flag_bits |= 0x800
+                fileinfo.filename = fileinfo.filename.encode("cp437").decode("utf-8")
+                zipObj.NameToInfo[fileinfo.filename] = fileinfo
+
+                # The only files we expect to find in a Slack export are .json files:
+                #   something.json
+                #   channelname/
+                #   channelname/2024-01-02.json
+                #
+                # Canvases may also appear in exports, either in their own
+                # top-level directories, or as `canvas_in_the_conversation.json`
+                # files in channel directories.  We do not parse these currently.
+                if not re.match(r"[^/]+(\.json|/([^/]+\.json)?)$", fileinfo.filename):
+                    raise Exception("This zip file does not look like a Slack archive")
+
+                # file_size is the uncompressed size of the file
+                total_size += fileinfo.file_size
+
+            # Based on historical Slack exports, anything that is more
+            # than a 10x size magnification is suspect, particularly
+            # if it results in over 1GB.
+            if total_size > 1024 * 1024 * 1024 and total_size > 10 * os.path.getsize(original_path):
+                raise Exception("This zip file is possibly malicious")
+
+            zipObj.extractall(slack_data_dir)
+
+        do_convert_directory(slack_data_dir, output_dir, token, threads, convert_slack_threads)
+    finally:
+        # Always clean up the uncompressed directory
+        rm_tree(slack_data_dir)
+
+
+def do_convert_directory(
+    slack_data_dir: str,
+    output_dir: str,
+    token: str,
+    threads: int = 6,
+    convert_slack_threads: bool = False,
+) -> None:
     check_token_access(token)
 
     os.makedirs(output_dir, exist_ok=True)
     if os.listdir(output_dir):
         raise Exception("Output directory should be empty!")
 
-    if os.path.isfile(original_path) and original_path.endswith(".zip"):
-        slack_data_dir = original_path.replace(".zip", "")
-        if not os.path.exists(slack_data_dir):
-            os.makedirs(slack_data_dir)
-
-        with zipfile.ZipFile(original_path) as zipObj:
-            # Slack's export doesn't set the UTF-8 flag on each
-            # filename entry, despite encoding them as such, so
-            # zipfile mojibake's the output.  Explicitly re-interpret
-            # it as UTF-8 misdecoded as cp437, the default.
-            for fileinfo in zipObj.infolist():
-                fileinfo.flag_bits |= 0x800
-                fileinfo.filename = fileinfo.filename.encode("cp437").decode("utf-8")
-                zipObj.NameToInfo[fileinfo.filename] = fileinfo
-            zipObj.extractall(slack_data_dir)
-    elif os.path.isdir(original_path):
-        slack_data_dir = original_path
-    else:
-        raise ValueError(f"Don't know how to import Slack data from {original_path}")
-
     if not os.path.isfile(os.path.join(slack_data_dir, "channels.json")):
-        raise ValueError(f"{original_path} does not have the layout we expect from a Slack export!")
+        raise ValueError("Import does not have the layout we expect from a Slack export!")
 
     # We get the user data from the legacy token method of Slack API, which is depreciated
     # but we use it as the user email data is provided only in this method
@@ -1411,6 +1438,12 @@ def do_convert_data(
     fetch_shared_channel_users(user_list, slack_data_dir, token)
 
     custom_emoji_list = get_slack_api_data("https://slack.com/api/emoji.list", "emoji", token=token)
+
+    # Subdomain is set by the user while running the import command
+    realm_subdomain = ""
+    realm_id = 0
+    domain_name = SplitResult("", settings.EXTERNAL_HOST, "", "", "").hostname
+    assert isinstance(domain_name, str)
 
     (
         realm,
@@ -1473,10 +1506,6 @@ def do_convert_data(
     create_converted_data_files(uploads_records, output_dir, "/uploads/records.json")
     create_converted_data_files(attachment, output_dir, "/attachment.json")
     create_converted_data_files(realm_icon_records, output_dir, "/realm_icons/records.json")
-
-    # Clean up the directory if we unpacked it ourselves.
-    if original_path != slack_data_dir:
-        rm_tree(slack_data_dir)
 
     logging.info("######### DATA CONVERSION FINISHED #########\n")
     logging.info("Zulip data dump created at %s", output_dir)

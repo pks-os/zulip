@@ -5,7 +5,7 @@ import re
 import unicodedata
 from collections.abc import Callable, Iterator
 from datetime import datetime
-from typing import IO, Any, BinaryIO
+from typing import IO, Any
 from urllib.parse import unquote, urljoin
 
 import pyvips
@@ -114,20 +114,27 @@ def get_public_upload_root_url() -> str:
     return upload_backend.get_public_upload_root_url()
 
 
-def sanitize_name(value: str) -> str:
-    """
-    Sanitizes a value to be safe to store in a Linux filesystem, in
+def sanitize_name(value: str, *, strict: bool = False) -> str:
+    """Sanitizes a value to be safe to store in a Linux filesystem, in
     S3, and in a URL.  So Unicode is allowed, but not special
     characters other than ".", "-", and "_".
+
+    In "strict" mode, it does not allow Unicode, allowing only ASCII
+    [A-Za-z0-9_] as word characters.  This is for the benefit of tusd,
+    which is not Unicode-aware.
 
     This implementation is based on django.utils.text.slugify; it is
     modified by:
     * adding '.' to the list of allowed characters.
     * preserving the case of the value.
     * not stripping trailing dashes and underscores.
+
     """
-    value = unicodedata.normalize("NFKC", value)
-    value = re.sub(r"[^\w\s.-]", "", value).strip()
+    if strict:
+        value = re.sub(r"[^A-Za-z0-9_ .-]", "", value).strip()
+    else:
+        value = unicodedata.normalize("NFKC", value)
+        value = re.sub(r"[^\w\s.-]", "", value).strip()
     value = re.sub(r"[-\s]+", "-", value)
 
     # Django's MultiPartParser never returns files named this, but we
@@ -205,7 +212,7 @@ def attachment_vips_source(path_id: str) -> StreamingSourceWithSize:
     return upload_backend.attachment_vips_source(path_id)
 
 
-def save_attachment_contents(path_id: str, filehandle: BinaryIO) -> None:
+def save_attachment_contents(path_id: str, filehandle: IO[bytes]) -> None:
     return upload_backend.save_attachment_contents(path_id, filehandle)
 
 
@@ -217,8 +224,10 @@ def delete_message_attachments(path_ids: list[str]) -> None:
     return upload_backend.delete_message_attachments(path_ids)
 
 
-def all_message_attachments(include_thumbnails: bool = False) -> Iterator[tuple[str, datetime]]:
-    return upload_backend.all_message_attachments(include_thumbnails)
+def all_message_attachments(
+    *, include_thumbnails: bool = False, prefix: str = ""
+) -> Iterator[tuple[str, datetime]]:
+    return upload_backend.all_message_attachments(include_thumbnails, prefix)
 
 
 # Avatar image uploads

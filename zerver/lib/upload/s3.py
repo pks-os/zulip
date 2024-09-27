@@ -3,7 +3,7 @@ import os
 import secrets
 from collections.abc import Callable, Iterator
 from datetime import datetime
-from typing import IO, TYPE_CHECKING, Any, BinaryIO, Literal
+from typing import IO, TYPE_CHECKING, Any, Literal
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
 import botocore
@@ -87,6 +87,10 @@ def upload_content_to_s3(
     extra_metadata: dict[str, str] | None = None,
     filename: str | None = None,
 ) -> None:
+    # Note that these steps are also replicated in
+    # handle_upload_pre_finish_hook in zerver.views.tus, to update
+    # properties for files uploaded via TUS.
+
     key = bucket.Object(path)
     metadata: dict[str, str] = {}
     if user_profile:
@@ -128,13 +132,15 @@ def get_boto_client() -> "S3Client":
     return BOTO_CLIENT
 
 
-def get_signed_upload_url(path: str, force_download: bool = False) -> str:
+def get_signed_upload_url(path: str, filename: str, force_download: bool = False) -> str:
     params = {
         "Bucket": settings.S3_AUTH_UPLOADS_BUCKET,
         "Key": path,
     }
     if force_download:
-        params["ResponseContentDisposition"] = "attachment"
+        params["ResponseContentDisposition"] = (
+            content_disposition_header(True, filename) or "attachment"
+        )
 
     return get_boto_client().generate_presigned_url(
         ClientMethod="get_object",
@@ -257,7 +263,7 @@ class S3UploadBackend(ZulipUploadBackend):
         )
 
     @override
-    def save_attachment_contents(self, path_id: str, filehandle: BinaryIO) -> None:
+    def save_attachment_contents(self, path_id: str, filehandle: IO[bytes]) -> None:
         for chunk in self.uploads_bucket.Object(path_id).get()["Body"]:
             filehandle.write(chunk)
 
@@ -284,11 +290,13 @@ class S3UploadBackend(ZulipUploadBackend):
 
     @override
     def all_message_attachments(
-        self, include_thumbnails: bool = False
+        self,
+        include_thumbnails: bool = False,
+        prefix: str = "",
     ) -> Iterator[tuple[str, datetime]]:
         client = self.uploads_bucket.meta.client
         paginator = client.get_paginator("list_objects_v2")
-        page_iterator = paginator.paginate(Bucket=self.uploads_bucket.name)
+        page_iterator = paginator.paginate(Bucket=self.uploads_bucket.name, Prefix=prefix)
 
         for page in page_iterator:
             if page["KeyCount"] > 0:

@@ -5,7 +5,7 @@ import secrets
 import shutil
 from collections.abc import Callable, Iterator
 from datetime import datetime
-from typing import IO, Any, BinaryIO, Literal
+from typing import IO, Any, Literal
 
 import pyvips
 from django.conf import settings
@@ -40,12 +40,12 @@ def write_local_file(type: Literal["avatars", "files"], path: str, file_data: by
         f.write(file_data)
 
 
-def read_local_file(type: Literal["avatars", "files"], path: str) -> bytes:
+def read_local_file(type: Literal["avatars", "files"], path: str) -> Iterator[bytes]:
     file_path = os.path.join(assert_is_not_none(settings.LOCAL_UPLOADS_DIR), type, path)
     assert_is_local_storage_path(type, file_path)
 
     with open(file_path, "rb") as f:
-        return f.read()
+        yield from iter(lambda: f.read(4 * 1024 * 1024), b"")
 
 
 def delete_local_file(type: Literal["avatars", "files"], path: str) -> bool:
@@ -98,8 +98,9 @@ class LocalUploadBackend(ZulipUploadBackend):
         write_local_file("files", path_id, file_data)
 
     @override
-    def save_attachment_contents(self, path_id: str, filehandle: BinaryIO) -> None:
-        filehandle.write(read_local_file("files", path_id))
+    def save_attachment_contents(self, path_id: str, filehandle: IO[bytes]) -> None:
+        for chunk in read_local_file("files", path_id):
+            filehandle.write(chunk)
 
     @override
     def attachment_vips_source(self, path_id: str) -> StreamingSourceWithSize:
@@ -114,17 +115,22 @@ class LocalUploadBackend(ZulipUploadBackend):
 
     @override
     def all_message_attachments(
-        self, include_thumbnails: bool = False
+        self,
+        include_thumbnails: bool = False,
+        prefix: str = "",
     ) -> Iterator[tuple[str, datetime]]:
         assert settings.LOCAL_UPLOADS_DIR is not None
         top = settings.LOCAL_UPLOADS_DIR + "/files"
-        for dirname, subdirnames, files in os.walk(top):
+        start = top
+        if prefix != "":
+            start += f"/{prefix}"
+        for dirname, subdirnames, files in os.walk(start):
             if not include_thumbnails and dirname == top and "thumbnail" in subdirnames:
                 subdirnames.remove("thumbnail")
             for f in files:
                 fullpath = os.path.join(dirname, f)
                 yield (
-                    os.path.relpath(fullpath, settings.LOCAL_UPLOADS_DIR + "/files"),
+                    os.path.relpath(fullpath, top),
                     timestamp_to_datetime(os.path.getmtime(fullpath)),
                 )
 
@@ -134,7 +140,7 @@ class LocalUploadBackend(ZulipUploadBackend):
 
     @override
     def get_avatar_contents(self, file_path: str) -> tuple[bytes, str]:
-        image_data = read_local_file("avatars", file_path + ".original")
+        image_data = b"".join(read_local_file("avatars", file_path + ".original"))
         content_type = guess_type(file_path)[0]
         return image_data, content_type or "application/octet-stream"
 
