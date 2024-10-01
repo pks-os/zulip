@@ -405,9 +405,18 @@ run_test("insert_remove", ({mock_template}) => {
         };
     }
 
+    let color_focused;
+    function handle_event(color) {
+        return (event) => {
+            assert.equal(event, "focus");
+            color_focused = color;
+        };
+    }
+
     const pills = widget._get_pills_for_testing();
     for (const pill of pills) {
         pill.$element.remove = set_colored_removed_func(pill.item.color_name);
+        pill.$element.trigger = handle_event(pill.item.color_name);
     }
 
     let key_handler = $container.get_on_handler("keydown", ".input");
@@ -422,24 +431,41 @@ run_test("insert_remove", ({mock_template}) => {
         },
     );
 
+    // The first backspace focuses the pill, the second removes it.
+    assert.ok(!removed);
+    assert.equal(color_focused, "YELLOW");
+    const yellow_pill = pills.find((pill) => pill.item.color_name === "YELLOW");
+    $container.set_find_results(".pill:focus", yellow_pill.$element);
+
+    let prev_pill_focused = false;
+    const $prev_pill_stub = $("<prev-stub>");
+    $prev_pill_stub.trigger = (type) => {
+        if (type === "focus") {
+            prev_pill_focused = true;
+        }
+    };
+    yellow_pill.$element.prev = () => $prev_pill_stub;
+    yellow_pill.$element.next = () => $("<next-stub>");
+
+    key_handler = $container.get_on_handler("keydown", ".pill");
+    key_handler.call(
+        {},
+        {
+            key: "Backspace",
+            preventDefault: noop,
+        },
+    );
     assert.ok(removed);
     assert.equal(color_removed, "YELLOW");
+    assert.ok(prev_pill_focused);
 
+    prev_pill_focused = false;
     assert.deepEqual(widget.items(), [items.blue, items.red]);
 
-    let next_pill_focused = false;
-
-    const $next_pill_stub = {
-        trigger(type) {
-            if (type === "focus") {
-                next_pill_focused = true;
-            }
-        },
-    };
-
     const $focus_pill_stub = {
-        next: () => $next_pill_stub,
-        [0]: "<pill-stub BLUE>",
+        prev: () => $prev_pill_stub,
+        next: () => $("<next-stub>"),
+        [0]: "<pill-stub RED>",
         length: 1,
     };
 
@@ -451,8 +477,8 @@ run_test("insert_remove", ({mock_template}) => {
         preventDefault: noop,
     });
 
-    assert.equal(color_removed, "BLUE");
-    assert.ok(next_pill_focused);
+    assert.equal(color_removed, "RED");
+    assert.ok(prev_pill_focused);
 });
 
 run_test("exit button on pill", ({mock_template}) => {

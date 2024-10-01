@@ -42,10 +42,10 @@ export const keyboard_handling_context = {
         $focused_row.remove();
         scheduled_messages.delete_scheduled_message(focused_element_id);
     },
-    items_container_selector: "overlay-messages-container",
-    items_list_selector: "overlay-messages-list",
+    items_container_selector: "scheduled-messages-container",
+    items_list_selector: "scheduled-messages-list",
     row_item_selector: "scheduled-message-row",
-    box_item_selector: "overlay-message-info-box",
+    box_item_selector: "scheduled-message-info-box",
     id_attribute_name: "data-scheduled-message-id",
 };
 
@@ -148,7 +148,7 @@ export function initialize() {
         e.preventDefault();
     });
 
-    $("body").on("focus", ".overlay-message-info-box", (e) => {
+    $("body").on("focus", ".scheduled-message-info-box", (e) => {
         messages_overlay_ui.activate_element(e.target, keyboard_handling_context);
     });
 }

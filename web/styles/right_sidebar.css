@@ -65,7 +65,18 @@ $user_status_emoji_width: 24px;
 
         .user-list-sidebar-menu-icon {
             visibility: hidden;
-            justify-self: center;
+            justify-self: stretch;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 2px 2px 2px 1px;
+            /* This helps horizontally align the vdots,
+               given the reduced margin-left above.
+               Vertical centering looks better with an
+               extra pixel of top padding in this area,
+               too. */
+            padding: 1px 0 0 1px;
+            border-radius: 3px;
 
             & i {
                 font-size: 17px;
@@ -99,6 +110,9 @@ $user_status_emoji_width: 24px;
 
                 &:hover {
                     color: var(--color-vdots-hover);
+                    background-color: var(
+                        --color-background-sidebar-action-hover
+                    );
                 }
             }
         }
@@ -106,6 +120,7 @@ $user_status_emoji_width: 24px;
         &:hover,
         &.highlighted_user {
             background-color: var(--color-buddy-list-highlighted-user);
+            box-shadow: inset 0 0 0 1px var(--color-shadow-sidebar-row-hover);
         }
     }
 
@@ -135,6 +150,8 @@ $user_status_emoji_width: 24px;
         text-align: left;
 
         &:hover {
+            /* Prevent hover styles set on other rows. */
+            box-shadow: none;
             background-color: inherit;
         }
     }
@@ -146,13 +163,13 @@ $user_status_emoji_width: 24px;
         color: var(--color-text-url);
 
         &:hover {
+            /* Prevent hover styles set on other rows until
+               the right sidebar matches the action-heading typography
+               of the left sidebar. */
+            box-shadow: none;
+            background-color: inherit;
             color: var(--color-text-url-hover);
         }
-    }
-
-    & a {
-        color: inherit;
-        margin-left: 0;
     }
 }
 
@@ -182,6 +199,7 @@ $user_status_emoji_width: 24px;
 .user-presence-link,
 .user_sidebar_entry .selectable_sidebar_block {
     overflow: hidden;
+    color: var(--color-text-sidebar-row);
 
     .user-name {
         overflow: hidden;
@@ -203,6 +221,12 @@ $user_status_emoji_width: 24px;
 
 .user-presence-link {
     grid-area: row-content;
+
+    &:hover,
+    &:focus {
+        color: var(--color-text-sidebar-row);
+        text-decoration: none;
+    }
 }
 
 .my_user_status {

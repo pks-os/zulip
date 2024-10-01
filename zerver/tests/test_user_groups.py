@@ -43,7 +43,7 @@ from zerver.lib.user_groups import (
     get_role_based_system_groups_dict,
     get_subgroup_ids,
     get_user_group_member_ids,
-    has_user_group_access,
+    has_user_group_access_for_subgroup,
     is_any_user_in_group,
     is_user_in_group,
     user_groups_in_realm_serialized,
@@ -395,7 +395,7 @@ class UserGroupTestCase(ZulipTestCase):
         self.assertFalse(is_any_user_in_group(moderators_group, [hamlet, polonius]))
         self.assertFalse(is_any_user_in_group(moderators_group, [hamlet], direct_member_only=True))
 
-    def test_has_user_group_access_to_subgroup(self) -> None:
+    def test_has_user_group_access_for_subgroup(self) -> None:
         iago = self.example_user("iago")
         zulip_realm = get_realm("zulip")
         zulip_group = check_add_user_group(zulip_realm, "zulip", [], acting_user=None)
@@ -406,11 +406,9 @@ class UserGroupTestCase(ZulipTestCase):
         lear_realm = get_realm("lear")
         lear_group = check_add_user_group(lear_realm, "test", [], acting_user=None)
 
-        self.assertFalse(has_user_group_access(lear_group, iago, for_read=False, as_subgroup=True))
-        self.assertTrue(has_user_group_access(zulip_group, iago, for_read=False, as_subgroup=True))
-        self.assertTrue(
-            has_user_group_access(moderators_group, iago, for_read=False, as_subgroup=True)
-        )
+        self.assertFalse(has_user_group_access_for_subgroup(lear_group, iago))
+        self.assertTrue(has_user_group_access_for_subgroup(zulip_group, iago))
+        self.assertTrue(has_user_group_access_for_subgroup(moderators_group, iago))
 
 
 class UserGroupAPITestCase(UserGroupTestCase):
@@ -1885,6 +1883,17 @@ class UserGroupAPITestCase(UserGroupTestCase):
         )
         check_update_user_group("help", "Troubleshooting team", "othello")
 
+        # Check user who is member of a subgroup of the group being updated
+        # can also update the group.
+        cordelia = self.example_user("cordelia")
+        subgroup = check_add_user_group(realm, "leadership", [cordelia], acting_user=cordelia)
+        add_subgroups_to_user_group(user_group, [subgroup], acting_user=None)
+        check_update_user_group(
+            "support",
+            "Support team",
+            "cordelia",
+        )
+
         # Check only full members are allowed to update the user group and only if belong to the
         # user group.
         do_set_realm_property(
@@ -1899,10 +1908,9 @@ class UserGroupAPITestCase(UserGroupTestCase):
         cordelia.date_joined = timezone_now() - timedelta(days=11)
         cordelia.save()
         check_update_user_group(
-            "support",
-            "Support team",
+            "help",
+            "Troubleshooting team",
             "cordelia",
-            "Insufficient permission",
         )
         check_update_user_group("support", "Support team", "othello", "Insufficient permission")
 

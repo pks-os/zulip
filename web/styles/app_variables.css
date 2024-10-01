@@ -338,6 +338,8 @@
     --text-transform-sidebar-action-heading: uppercase;
     --letter-spacing-sidebar-heading: 0.0469em;
     --opacity-sidebar-heading: 0.7;
+    --opacity-sidebar-heading-icon: 0.5;
+    --opacity-sidebar-heading-hover: 0.9;
     --opacity-right-sidebar-subheading: 0.65;
     --opacity-right-sidebar-subheading-hover: 0.9;
 
@@ -553,15 +555,21 @@
     --color-background-widget-input: hsl(0deg 0% 100%);
     --color-background-widget-button: hsl(0deg 0% 100%);
     --color-background-navbar: hsl(0deg 0% 97%);
-    --color-background-active-narrow-filter: hsl(202deg 56% 91%);
-    --color-background-hover-narrow-filter: hsl(120deg 12.3% 71.4% / 38%);
+    --color-text-sidebar-row: hsl(0deg 0% 20%);
+    --color-text-active-narrow-filter: hsl(0deg 0% 15%);
+    --color-background-active-narrow-filter: hsl(0deg 0% 100%);
+    --color-background-hover-narrow-filter: hsl(0deg 0% 97%);
     /* We mix an opaque version with the background for
        replicating the color on .sidebar-topic-check, which
        will mask a portion of the topic-grouping bracket. */
-    --color-background-opaque-hover-narrow-filter: color-mix(
-        in srgb,
-        hsl(120deg 12.3% 71.4%) 38%,
-        hsl(0deg 0% 94%)
+    --color-background-opaque-hover-narrow-filter: var(
+        --color-background-hover-narrow-filter
+    );
+    --color-shadow-sidebar-row-hover: hsl(0deg 0% 0% / 30%);
+    --color-background-sidebar-action-hover: hsl(240deg 100% 93%);
+    --color-background-navigation-item-hover: hsl(240deg 100% 50% / 7%);
+    --color-background-sidebar-action-heading-hover: var(
+        --color-background-navigation-item-hover
     );
     --color-navbar-bottom-border: hsl(0deg 0% 80%);
     --color-unread-marker: hsl(217deg 64% 59%);
@@ -609,7 +617,9 @@
     --color-background-tab-picker-tab-option-active: hsl(0deg 0% 100% / 35%);
     --color-background-popover: hsl(0deg 0% 100%);
     --color-background-alert-word: hsl(18deg 100% 84%);
-    --color-buddy-list-highlighted-user: hsl(120deg 12.3% 71.4% / 38%);
+    --color-buddy-list-highlighted-user: var(
+        --color-background-hover-narrow-filter
+    );
     --color-border-sidebar: hsl(0deg 0% 87%);
     --color-text-sidebar-base: hsl(0deg 0% 0%);
     --color-border-sidebar-subheader: hsl(0deg 0% 0% / 15%);
@@ -706,6 +716,7 @@
     --color-text-personal-menu-some-status: hsl(0deg 0% 40%);
     --color-text-sidebar-heading: hsl(216deg 65% 20%);
     --color-text-sidebar-action-heading: hsl(240deg 30% 40%);
+    --color-text-sidebar-action-heading-hover: hsl(240deg 100% 15%);
     --color-text-sidebar-popover-menu: hsl(0deg 0% 20%);
     --color-text-user-card-secondary: var(--grey-550);
     --color-text-url: hsl(200deg 100% 40%);
@@ -751,13 +762,10 @@
     --color-left-sidebar-follow-icon-hover: hsl(0deg 0% 0%);
     /* The gray on the filter icons is the same as
        what's set on ul.filters, but with 70% opacity. */
-    --color-left-sidebar-navigation-icon: hsl(0deg 0% 20% / 70%);
-    --color-vdots-hint: hsl(0deg 0% 0% / 30%);
-    --color-vdots-visible: hsl(0deg 0% 0% / 53%);
-    --color-vdots-hover: hsl(0deg 0% 0%);
-    --color-left-sidebar-header-vdots-visible: var(
-        --color-left-sidebar-navigation-icon
-    );
+    --color-left-sidebar-navigation-icon: hsl(240deg 30% 40%);
+    --color-vdots-hint: hsl(240deg 30% 20%);
+    --color-vdots-visible: hsl(240deg 30% 40%);
+    --color-vdots-hover: hsl(240deg 100% 15%);
     --color-tab-picker-icon: hsl(200deg 100% 40%);
     --color-user-circle-active: hsl(106deg 74% 44%);
     --color-user-circle-idle: hsl(29deg 84% 51%);
@@ -1011,15 +1019,33 @@
     --color-background-widget-input: hsl(225deg 6% 10%);
     --color-background-widget-button: hsl(0deg 0% 0% / 20%);
     --color-background-navbar: hsl(0deg 0% 13%);
-    --color-background-active-narrow-filter: hsl(200deg 17% 18%);
-    --color-background-hover-narrow-filter: hsl(136deg 25% 73% / 20%);
+    --color-text-sidebar-row: hsl(0deg 0% 100% / 75%);
+    --color-text-active-narrow-filter: hsl(0deg 0% 90%);
+    --color-background-active-narrow-filter: color-mix(
+        in srgb,
+        hsl(0deg 0% 100%) 8%,
+        hsl(0deg 0% 11%)
+    );
+    --color-background-hover-narrow-filter: hsl(0deg 0% 97% / 8%);
     /* We mix an opaque version with the background for
        replicating the color on .sidebar-topic-check, which
        will mask a portion of the topic-grouping bracket. */
     --color-background-opaque-hover-narrow-filter: color-mix(
         in srgb,
-        hsl(136deg 25% 73%) 20%,
+        hsl(0deg 0% 97%) 8%,
         hsl(0deg 0% 11%)
+    );
+    --color-background-opaque-hover-active-narrow-filter: color-mix(
+        in srgb,
+        hsl(0deg 0% 97%) 8%,
+        hsl(0deg 0% 97%) 8%,
+        hsl(0deg 0% 11%)
+    );
+    --color-shadow-sidebar-row-hover: hsl(0deg 0% 100% / 30%);
+    --color-background-sidebar-action-hover: hsl(240deg 25% 35%);
+    --color-background-navigation-item-hover: hsl(240deg 100% 75% / 20%);
+    --color-background-sidebar-action-heading-hover: var(
+        --color-background-navigation-item-hover
     );
     --color-navbar-bottom-border: hsl(0deg 0% 0% / 60%);
     --color-unread-marker: hsl(217deg 64% 59%);
@@ -1068,7 +1094,9 @@
     --color-background-tab-picker-tab-option-hover: hsl(0deg 0% 100% / 5%);
     --color-background-tab-picker-tab-option-active: hsl(0deg 0% 100% / 3%);
     --color-background-alert-word: hsl(22deg 70% 35%);
-    --color-buddy-list-highlighted-user: hsl(136deg 25% 73% / 20%);
+    --color-buddy-list-highlighted-user: var(
+        --color-background-hover-narrow-filter
+    );
     --color-border-sidebar: hsl(0deg 0% 0% / 20%);
     --color-text-sidebar-base: hsl(0deg 0% 100%);
     --color-border-sidebar-subheader: hsl(0deg 0% 100% / 15%);
@@ -1172,6 +1200,7 @@
     --color-text-user-card-secondary: var(--grey-400);
     --color-text-sidebar-heading: hsl(216deg 50% 75%);
     --color-text-sidebar-action-heading: hsl(240deg 35% 68%);
+    --color-text-sidebar-action-heading-hover: hsl(240deg 100% 90%);
     --color-text-url-hover: hsl(200deg 79% 66%);
     --color-text-settings-field-hint: hsl(0deg 0% 52%);
 
@@ -1216,10 +1245,10 @@
     --color-message-action-visible: hsl(217deg 41% 90% / 50%);
     --color-message-action-interactive: hsl(217deg 41% 90% / 100%);
     --color-left-sidebar-follow-icon-hover: hsl(0deg 0% 100%);
-    --color-left-sidebar-navigation-icon: hsl(0deg 0% 100% / 56%);
-    --color-vdots-hint: hsl(0deg 0% 100% / 30%);
-    --color-vdots-visible: hsl(236deg 33% 80%);
-    --color-vdots-hover: hsl(0deg 0% 100%);
+    --color-left-sidebar-navigation-icon: hsl(240deg 35% 68%);
+    --color-vdots-hint: hsl(240deg 35% 48%);
+    --color-vdots-visible: hsl(240deg 35% 68%);
+    --color-vdots-hover: hsl(240deg 100% 90%);
     --color-left-sidebar-header-vdots-visible: var(
         --color-left-sidebar-navigation-icon
     );

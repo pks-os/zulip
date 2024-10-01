@@ -12,6 +12,7 @@
 .left-sidebar-title {
     color: var(--color-text-sidebar-heading);
     opacity: var(--opacity-sidebar-heading);
+    transition: opacity 140ms linear;
     font-size: inherit;
     font-weight: var(--font-weight-sidebar-heading);
     letter-spacing: var(--letter-spacing-sidebar-heading);
@@ -180,6 +181,18 @@
     grid-template-rows: var(--line-height-sidebar-row-prominent);
     cursor: pointer;
     white-space: nowrap;
+    border-radius: 4px;
+
+    /* Prevent hover styles set on other rows when zoomed in. */
+    &:not(.zoom-in):hover {
+        background-color: var(--color-background-hover-narrow-filter);
+        box-shadow: inset 0 0 0 1px var(--color-shadow-sidebar-row-hover);
+
+        .left-sidebar-title,
+        .sidebar-heading-icon {
+            opacity: var(--opacity-sidebar-heading-hover);
+        }
+    }
 
     #toggle-direct-messages-section-icon {
         grid-area: starting-anchor-element;
@@ -223,7 +236,7 @@
         font-weight: 400;
         margin-left: 0;
         margin-bottom: 0;
-        line-height: var(--line-height-sidebar-row);
+        line-height: var(--line-height-sidebar-row-prominent);
 
         & li.dm-list-item {
             & a {
@@ -249,6 +262,16 @@
                count, when one appears there. */
             align-items: baseline;
 
+            &:hover {
+                background-color: var(
+                    --color-background-sidebar-action-heading-hover
+                );
+
+                .dm-name {
+                    color: var(--color-text-sidebar-action-heading-hover);
+                }
+            }
+
             .unread_count {
                 margin-top: 2px;
             }
@@ -273,11 +296,7 @@
 #toggle-direct-messages-section-icon,
 #toggle-top-left-navigation-area-icon {
     color: var(--color-text-sidebar-heading);
-    opacity: var(--opacity-sidebar-heading);
-
-    &:hover {
-        opacity: 1;
-    }
+    opacity: var(--opacity-sidebar-heading-icon);
 
     &:focus {
         outline: 0;
@@ -303,10 +322,16 @@
     }
 }
 
-:not(.active-sub-filter) {
-    &.top_left_row:hover,
-    &.bottom_left_row:hover {
+.top_left_row,
+.bottom_left_row {
+    /* Ensure a border radius on any interactive
+       state that might show a highlight. */
+    border-radius: 4px;
+
+    &:hover,
+    &:has(.left_sidebar_menu_icon_visible) {
         background-color: var(--color-background-hover-narrow-filter);
+        box-shadow: inset 0 0 0 1px var(--color-shadow-sidebar-row-hover);
 
         .sidebar-topic-check {
             background-color: var(
@@ -314,13 +339,17 @@
             );
         }
     }
-}
 
-.top_left_row,
-.bottom_left_row {
-    /* Ensure a border radius on any interactive
-       state that might show a highlight. */
-    border-radius: 4px;
+    &:has(.sidebar-topic-action-heading):hover {
+        background-color: var(--color-background-sidebar-action-heading-hover);
+    }
+
+    &.active-filter,
+    &.active-sub-filter {
+        &:has(.left_sidebar_menu_icon_visible) {
+            background-color: var(--color-background-active-narrow-filter);
+        }
+    }
 }
 
 #stream_filters .narrow-filter.highlighted_stream {
@@ -372,17 +401,16 @@
 ul.filters {
     list-style-type: none;
     margin-left: 0;
-    color: hsl(0deg 0% 20% / 100%);
     /* Streams take a standard row height. */
     line-height: var(--line-height-sidebar-row);
 
     .sidebar-topic-name,
     .left-sidebar-navigation-label-container {
-        color: inherit;
+        color: var(--color-text-sidebar-row);
 
         &:hover {
             /* Push back against a:hover color in dark_theme.css */
-            color: inherit !important;
+            color: var(--color-text-sidebar-row) !important;
         }
 
         &:focus {
@@ -489,10 +517,26 @@ li.active-sub-filter {
     font-weight: 600 !important;
     position: relative;
     border-radius: 4px;
+    color: var(--color-text-active-narrow-filter);
     background-color: var(--color-background-active-narrow-filter);
+
+    &:hover {
+        background-color: var(--color-background-active-narrow-filter);
+
+        .sidebar-topic-check {
+            /* This variable is only set and used in dark mode. */
+            background-color: var(
+                --color-background-opaque-hover-active-narrow-filter
+            );
+        }
+    }
 
     .sidebar-topic-check {
         background-color: var(--color-background-active-narrow-filter);
+    }
+
+    .sidebar-topic-name-inner {
+        color: var(--color-text-active-narrow-filter);
     }
 }
 
@@ -501,6 +545,10 @@ li.active-sub-filter {
     > .bottom_left_row {
         background-color: var(--color-background-active-narrow-filter);
         border-radius: 4px;
+
+        &:hover {
+            background-color: var(--color-background-hover-narrow-filter);
+        }
     }
 }
 
@@ -526,7 +574,7 @@ li.active-sub-filter {
            element within receives focus. */
         &:hover,
         &:focus-within {
-            background: var(--color-background-hover-narrow-filter);
+            background: var(--color-background-navigation-item-hover);
 
             .unread_count {
                 /* 6px at 12px/1em */
@@ -822,14 +870,26 @@ li.top_left_scheduled_messages {
 }
 
 #views-label-container {
+    margin-right: var(--left-sidebar-right-margin);
     grid-template-columns:
         0 var(--left-sidebar-header-icon-toggle-width) 0 minmax(0, 0.5fr) minmax(
             0,
             1fr
         )
-        30px var(--left-sidebar-right-margin);
-    grid-template-rows: var(--line-height-sidebar-row-prominent);
+        30px 0;
+    grid-template-rows: 28px;
     cursor: pointer;
+    border-radius: 4px;
+
+    &:not(.remove-pointer-for-spectator):hover {
+        background-color: var(--color-background-hover-narrow-filter);
+        box-shadow: inset 0 0 0 1px var(--color-shadow-sidebar-row-hover);
+
+        .left-sidebar-title,
+        .sidebar-heading-icon {
+            opacity: var(--opacity-sidebar-heading-hover);
+        }
+    }
 
     &.showing-expanded-navigation {
         /* When the expanded navigation is visible,
@@ -892,7 +952,7 @@ li.top_left_scheduled_messages {
     .left-sidebar-navigation-menu-icon {
         grid-area: ending-anchor-element;
         /* Horizontally center vdots. */
-        justify-self: center;
+        justify-self: stretch;
         /* Properly size vdots. */
         font-size: 17px;
         /* Occupy same clickable height as
@@ -902,10 +962,14 @@ li.top_left_scheduled_messages {
            flexbox. */
         display: flex;
         align-items: center;
-        color: var(--color-left-sidebar-header-vdots-visible);
+        justify-content: center;
+        margin-right: 2px;
+        border-radius: 3px;
+        color: var(--color-vdots-visible);
 
         &:hover {
             color: var(--color-vdots-hover);
+            background-color: var(--color-background-sidebar-action-hover);
         }
     }
 }
@@ -1026,9 +1090,8 @@ li.top_left_scheduled_messages {
 
     &:hover {
         text-decoration: none;
-        /* Push back against a:hover color in dark_theme.css
-           Eventually this will take redesigned hover colors. */
-        color: var(--color-text-sidebar-action-heading) !important;
+        /* Push back against a:hover color in dark_theme.css. */
+        color: var(--color-text-sidebar-action-heading-hover) !important;
     }
 }
 
@@ -1061,7 +1124,6 @@ li.top_left_scheduled_messages {
        bracket's bottom line. Its value must less than
        the z-index set on the #streams_header selector. */
     z-index: 1;
-    background-color: var(--color-background);
 }
 
 .stream-markers-and-controls,
@@ -1105,19 +1167,24 @@ li.top_left_scheduled_messages {
 .bottom_left_row .sidebar-menu-icon,
 .top_left_row .sidebar-menu-icon {
     display: none;
-    width: 100%;
     cursor: pointer;
     /* Use a flex container to handle
        icon centering within the grid area.
        :hover actually sets the `display: flex`,
        so it remains hidden otherwise. */
     justify-content: center;
+    align-items: center;
     text-align: center;
     /* Ensure icons are vertically aligned, in
        case they appear in a grid definition,
        like the nav rows, that use a different
        centering regime for the row. */
-    align-self: center;
+    align-self: stretch;
+    border-radius: 3px;
+    margin: 2px 2px 2px 1px;
+    /* This helps horizontally align the vdots,
+       given the reduced margin-left above. */
+    padding-left: 1px;
     /* Set the icon size, which will be inherited
        by .zulip-icon */
     font-size: 17px;
@@ -1166,12 +1233,9 @@ li.top_left_scheduled_messages {
     display: flex;
     color: var(--color-vdots-visible);
 
-    /*
-        If you hover directly over the vdots icon,
-        show it in black.
-    */
     &:hover {
         color: var(--color-vdots-hover);
+        background-color: var(--color-background-sidebar-action-hover);
     }
 }
 
@@ -1322,21 +1386,33 @@ li.topic-list-item {
     top: 0;
     z-index: 2;
     grid-template-columns:
-        var(--left-sidebar-toggle-width-offset) 0 0 minmax(0, 1fr)
-        max-content 0 42px;
-    grid-template-rows: var(--line-height-sidebar-row-prominent);
+        [topics-content-area-start] var(--left-sidebar-toggle-width-offset)
+        0 0 minmax(0, 1fr)
+        max-content 0 42px [topics-content-area-end];
+    grid-template-rows:
+        [topics-content-area-start] var(--line-height-sidebar-row-prominent)
+        [topics-content-area-end];
     padding-top: var(--left-sidebar-sections-vertical-gutter);
     color: hsl(0deg 0% 43%);
     background-color: var(--color-background);
 
     .show-all-streams {
-        grid-area: row-content;
+        grid-area: topics-content-area;
+        padding-left: var(--left-sidebar-toggle-width-offset);
         font-size: var(--font-size-sidebar-action-heading);
         font-weight: var(--font-weight-sidebar-action-heading);
         font-variant: var(--font-variant-sidebar-action-heading);
         text-transform: var(--text-transform-sidebar-action-heading);
         color: var(--color-text-sidebar-action-heading);
         text-decoration: none;
+
+        &:hover {
+            background-color: var(
+                --color-background-sidebar-action-heading-hover
+            );
+            box-shadow: inset 0 0 0 1px var(--color-shadow-sidebar-row-hover);
+            border-radius: 4px;
+        }
     }
 
     .unread_count {
@@ -1347,22 +1423,41 @@ li.topic-list-item {
 #streams_header {
     grid-template-columns:
         var(--left-sidebar-toggle-width-offset) 0 0 minmax(0, 1fr)
-        minmax(17px, max-content) 30px var(--left-sidebar-right-margin);
+        minmax(17px, max-content) 30px 0;
     /* Keep the stream-search area rows collapsed. */
     grid-template-rows: var(--line-height-sidebar-row-prominent) 0 0;
     cursor: pointer;
-    padding: var(--left-sidebar-sections-vertical-gutter) 0 3px 0;
+    margin: var(--left-sidebar-sections-vertical-gutter)
+        var(--left-sidebar-right-margin) 3px 0;
     position: sticky;
     /* Keep sticky within SimpleBar context. */
     top: 0;
     z-index: 2;
     background-color: var(--color-background);
+    border-radius: 4px;
+
+    &:hover {
+        background-color: var(--color-background-opaque-hover-narrow-filter);
+        box-shadow: inset 0 0 0 1px var(--color-shadow-sidebar-row-hover);
+
+        .left-sidebar-title,
+        .sidebar-heading-icon {
+            opacity: var(--opacity-sidebar-heading-hover);
+        }
+    }
 
     &.showing-stream-search-section {
         /* Open up the stream-search rows. The 10px
            row maintains space with the streams list
            below. */
         grid-template-rows: var(--line-height-sidebar-row-prominent) 28px 10px;
+
+        /* When the search section is showing, switch
+           off the hover effects on the row. */
+        &:hover {
+            background-color: var(--color-background);
+            box-shadow: unset;
+        }
     }
 
     .left-sidebar-title {
@@ -1496,7 +1591,8 @@ li.topic-list-item {
 .spectator-view #streams_header {
     grid-template-columns:
         var(--left-sidebar-toggle-width-offset) 0 0 minmax(0, 1fr)
-        minmax(30px, max-content) 0 var(--left-sidebar-right-margin);
+        minmax(30px, max-content) 0 0;
+    margin-right: var(--left-sidebar-right-margin);
 
     /* With markers and controls now sized the same
        as the ordinary vdots area (but allowed to grow,
@@ -1576,6 +1672,12 @@ li.topic-list-item {
         z-index: 2;
         padding-bottom: 1px;
         background-color: var(--color-background);
+
+        &:hover {
+            /* Prevent hover styles set on other rows. */
+            box-shadow: none;
+            background-color: var(--color-background);
+        }
     }
 
     #streams_header,
@@ -1605,7 +1707,10 @@ li.topic-list-item {
         }
 
         &:hover {
-            background-color: hsl(120deg 12.3% 71.4% / 38%);
+            background-color: var(
+                --color-background-sidebar-action-heading-hover
+            );
+            box-shadow: inset 0 0 0 1px var(--color-shadow-sidebar-row-hover);
             border-radius: 4px;
         }
     }

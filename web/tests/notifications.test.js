@@ -7,6 +7,7 @@ const {run_test} = require("./lib/test");
 const $ = require("./lib/zjquery");
 const {current_user, page_params, user_settings} = require("./lib/zpage_params");
 
+mock_esm("../src/electron_bridge");
 mock_esm("../src/spoilers", {hide_spoilers_in_notification() {}});
 
 const user_topics = zrequire("user_topics");
@@ -402,14 +403,14 @@ test("basic_notifications", () => {
     n = desktop_notifications.get_notifications();
     assert.equal(n.has("Jesse Pinkman to general > whatever"), true);
     assert.equal(n.size, 1);
-    assert.equal(last_shown_message_id, message_1.id);
+    assert.equal(last_shown_message_id, message_1.id.toString());
 
     // Remove notification.
     desktop_notifications.close_notification(message_1);
     n = desktop_notifications.get_notifications();
     assert.equal(n.has("Jesse Pinkman to general > whatever"), false);
     assert.equal(n.size, 0);
-    assert.equal(last_closed_message_id, message_1.id);
+    assert.equal(last_closed_message_id, message_1.id.toString());
 
     // Send notification.
     message_1.id = 1001;
@@ -417,7 +418,7 @@ test("basic_notifications", () => {
     n = desktop_notifications.get_notifications();
     assert.equal(n.has("Jesse Pinkman to general > whatever"), true);
     assert.equal(n.size, 1);
-    assert.equal(last_shown_message_id, message_1.id);
+    assert.equal(last_shown_message_id, message_1.id.toString());
 
     // Process same message again. Notification count shouldn't increase.
     message_1.id = 1002;
@@ -425,7 +426,7 @@ test("basic_notifications", () => {
     n = desktop_notifications.get_notifications();
     assert.equal(n.has("Jesse Pinkman to general > whatever"), true);
     assert.equal(n.size, 1);
-    assert.equal(last_shown_message_id, message_1.id);
+    assert.equal(last_shown_message_id, message_1.id.toString());
 
     // Send another message. Notification count should increase.
     message_notifications.process_notification({message: message_2, desktop_notify: true});
@@ -433,7 +434,7 @@ test("basic_notifications", () => {
     assert.equal(n.has("Gus Fring to general > lunch"), true);
     assert.equal(n.has("Jesse Pinkman to general > whatever"), true);
     assert.equal(n.size, 2);
-    assert.equal(last_shown_message_id, message_2.id);
+    assert.equal(last_shown_message_id, message_2.id.toString());
 
     // Remove notifications.
     desktop_notifications.close_notification(message_1);
@@ -441,5 +442,5 @@ test("basic_notifications", () => {
     n = desktop_notifications.get_notifications();
     assert.equal(n.has("Jesse Pinkman to general > whatever"), false);
     assert.equal(n.size, 0);
-    assert.equal(last_closed_message_id, message_2.id);
+    assert.equal(last_closed_message_id, message_2.id.toString());
 });

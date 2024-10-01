@@ -74,80 +74,110 @@ class LockedUserGroupContext:
     recursive_subgroups: list[NamedUserGroup]
 
 
-def has_user_group_access(
+def has_user_group_access_for_subgroup(
     user_group: NamedUserGroup,
     user_profile: UserProfile,
     *,
-    for_read: bool,
-    as_subgroup: bool,
     allow_deactivated: bool = False,
 ) -> bool:
+    """Minimal access control checks for whether the given group
+    is visible to the given user for use as a subgroup.
+
+    In the future, if groups whose existence is not visible to the
+    entire organization are added, this may grow more complex.
+    """
     if user_group.realm_id != user_profile.realm_id:
         return False
 
     if not allow_deactivated and user_group.deactivated:
         raise JsonableError(_("User group is deactivated."))
 
-    if as_subgroup:
-        # At this time, we only check for realm ID of a potential subgroup.
-        return True
-
-    if for_read and not user_profile.is_guest:
-        # Everyone is allowed to read a user group and check who
-        # are its members. Guests should be unable to reach this
-        # code path, since they can't access user groups API
-        # endpoints, but we check for guests here for defense in
-        # depth.
-        return True
-
-    if user_group.is_system_group:
-        return False
-
-    can_edit_all_user_groups = user_profile.can_edit_all_user_groups()
-
-    group_member_ids = get_user_group_direct_member_ids(user_group)
-    if (
-        not user_profile.is_realm_admin
-        and not user_profile.is_moderator
-        and user_profile.id not in group_member_ids
-    ):
-        can_edit_all_user_groups = False
-
-    if can_edit_all_user_groups:
-        return True
-
-    return user_has_permission_for_group_setting(
-        user_group.can_manage_group,
-        user_profile,
-        NamedUserGroup.GROUP_PERMISSION_SETTINGS["can_manage_group"],
-    )
+    return True
 
 
-def access_user_group_by_id(
+def get_user_group_by_id_in_realm(
     user_group_id: int,
-    user_profile: UserProfile,
+    realm: Realm,
     *,
     for_read: bool,
     for_setting: bool = False,
     allow_deactivated: bool = False,
 ) -> NamedUserGroup:
+    """
+    Internal function for accessing a single user group from client
+    code. Locks the group if for_read is False.
+
+    Notably does not do any access control checks, beyond only fetching
+    groups from the provided realm.
+    """
     try:
-        if for_read and not for_setting:
-            user_group = NamedUserGroup.objects.get(id=user_group_id, realm=user_profile.realm)
+        if for_read:
+            user_group = NamedUserGroup.objects.get(id=user_group_id, realm=realm)
         else:
             user_group = NamedUserGroup.objects.select_for_update().get(
-                id=user_group_id, realm=user_profile.realm
+                id=user_group_id, realm=realm
             )
+
+        if not allow_deactivated and user_group.deactivated:
+            raise JsonableError(_("User group is deactivated."))
+        return user_group
     except NamedUserGroup.DoesNotExist:
         raise JsonableError(_("Invalid user group"))
 
-    if not has_user_group_access(
-        user_group,
-        user_profile,
-        for_read=for_read,
-        as_subgroup=False,
-        allow_deactivated=allow_deactivated,
+
+def check_permission_for_managing_all_groups(
+    user_group: UserGroup, user_profile: UserProfile
+) -> bool:
+    """
+    Given a user and a group in the same realm, checks if the user
+    can manage the group through the legacy can_edit_all_user_groups
+    permission, which is a permission that requires either certain roles
+    or membership in the group itself to be used.
+    """
+    can_edit_all_user_groups = user_profile.can_edit_all_user_groups()
+    if can_edit_all_user_groups:
+        if user_profile.is_realm_admin or user_profile.is_moderator:
+            return True
+
+        return is_user_in_group(user_group, user_profile)
+    return False
+
+
+def access_user_group_for_update(
+    user_group_id: int,
+    user_profile: UserProfile,
+    *,
+    permission_setting: str,
+    allow_deactivated: bool = False,
+) -> NamedUserGroup:
+    """
+    Main entry point that views code should call when planning to modify
+    a given user group on behalf of a given user.
+
+    The permission_setting parameter indicates what permission to check;
+    different features will be used when editing the membership vs.
+    security-sensitive settings on a group.
+    """
+    user_group = get_user_group_by_id_in_realm(
+        user_group_id, user_profile.realm, for_read=False, allow_deactivated=allow_deactivated
+    )
+
+    if user_group.is_system_group:
+        raise JsonableError(_("Insufficient permission"))
+
+    assert permission_setting in NamedUserGroup.GROUP_PERMISSION_SETTINGS
+    if permission_setting == "can_manage_group" and check_permission_for_managing_all_groups(
+        user_group, user_profile
     ):
+        return user_group
+
+    user_has_permission = user_has_permission_for_group_setting(
+        getattr(user_group, permission_setting),
+        user_profile,
+        NamedUserGroup.GROUP_PERMISSION_SETTINGS[permission_setting],
+    )
+
+    if not user_has_permission:
         raise JsonableError(_("Insufficient permission"))
 
     return user_group
@@ -156,7 +186,13 @@ def access_user_group_by_id(
 def access_user_group_for_deactivation(
     user_group_id: int, user_profile: UserProfile
 ) -> NamedUserGroup:
-    user_group = access_user_group_by_id(user_group_id, user_profile, for_read=False)
+    """
+    Main security check / access function for whether the acting
+    user has permission to deactivate a given user group.
+    """
+    user_group = access_user_group_for_update(
+        user_group_id, user_profile, permission_setting="can_manage_group"
+    )
 
     if (
         user_group.direct_supergroups.exclude(named_user_group=None)
@@ -249,8 +285,8 @@ def lock_subgroups_with_respect_to_supergroup(
         # the transaction with a JsonableError by handling the DatabaseError.
         # But at the current scale of concurrent requests, we rely on
         # Postgres's deadlock detection when it occurs.
-        potential_supergroup = access_user_group_by_id(
-            potential_supergroup_id, acting_user, for_read=False
+        potential_supergroup = access_user_group_for_update(
+            potential_supergroup_id, acting_user, permission_setting="can_manage_group"
         )
         # We avoid making a separate query for user_group_ids because the
         # recursive query already returns those user groups.
@@ -275,8 +311,8 @@ def lock_subgroups_with_respect_to_supergroup(
             # At this time, we only do a check on the realm ID of the subgroup and
             # whether the group is deactivated or not. Realm ID error would be caught
             # above and in case the user group is deactivated the error will be raised
-            # in has_user_group_access itself, so there is no coverage here.
-            if not has_user_group_access(subgroup, acting_user, for_read=False, as_subgroup=True):
+            # in has_user_group_access_for_subgroup itself, so there is no coverage here.
+            if not has_user_group_access_for_subgroup(subgroup, acting_user):
                 raise JsonableError(_("Insufficient permission"))  # nocoverage
 
         yield LockedUserGroupContext(
@@ -386,8 +422,8 @@ def update_or_create_user_group_for_setting(
         # At this time, we only do a check on the realm ID of the subgroup and
         # whether the group is deactivated or not. Realm ID error would be caught
         # above and in case the user group is deactivated the error will be raised
-        # in has_user_group_access itself, so there is no coverage here.
-        if not has_user_group_access(subgroup, user_profile, for_read=False, as_subgroup=True):
+        # in has_user_group_access_for_subgroup itself, so there is no coverage here.
+        if not has_user_group_access_for_subgroup(subgroup, user_profile):
             raise JsonableError(_("Insufficient permission"))  # nocoverage
 
     user_group.direct_subgroups.set(group_ids_found)
@@ -403,9 +439,13 @@ def access_user_group_for_setting(
     permission_configuration: GroupPermissionSetting,
     current_setting_value: UserGroup | None = None,
 ) -> UserGroup:
+    """Given a permission setting and specification of what value it
+    should have (setting_user_group), returns either a Named or
+    anonymous `UserGroup` with the requested membership.
+    """
     if isinstance(setting_user_group, int):
-        named_user_group = access_user_group_by_id(
-            setting_user_group, user_profile, for_read=True, for_setting=True
+        named_user_group = get_user_group_by_id_in_realm(
+            setting_user_group, user_profile.realm, for_read=False, for_setting=True
         )
         check_setting_configuration_for_system_groups(
             named_user_group, setting_name, permission_configuration
