@@ -4296,6 +4296,50 @@ paths:
                                         `"role:internet"` and `"role:owners"`.
 
                                         **Changes**: New in Zulip 8.0 (feature level 209).
+                                    can_create_groups:
+                                      allOf:
+                                        - $ref: "#/components/schemas/GroupSettingValue"
+                                        - description: |
+                                            A [group-setting value](/api/group-setting-values) defining
+                                            the set of users who have permission to create user
+                                            groups in this organization.
+
+                                            This setting cannot be set to `"role:internet"`, `"role:everyone"`,
+                                            and `"role:nobody"` system groups.
+
+                                            **Changes**: New in Zulip 10.0 (feature level 299). Previously
+                                            `user_group_edit_policy` field used to control the permission
+                                            to create user groups.
+                                    can_manage_all_groups:
+                                      allOf:
+                                        - $ref: "#/components/schemas/GroupSettingValue"
+                                        - description: |
+                                            A [group-setting value](/api/group-setting-values)
+                                            defining the set of users who have permission to
+                                            administer all existing groups in this organization.
+
+                                            This setting cannot be set to `"role:internet"`, `"role:everyone"`,
+                                            and `"role:nobody"` system groups.
+
+                                            **Changes**: Semantics to change in Zulip 10.0 (feature
+                                            level TBD). The original implementation of this setting
+                                            had different semantics, where only users who were a
+                                            member of the group or had the moderator role or above
+                                            could exercise the permission.
+
+                                            New in Zulip 10.0 (feature level 299). Previously the
+                                            `user_group_edit_policy` field controlled the permission
+                                            to manage user groups. Valid values were as follows:
+
+                                            - 1 = All members can create and edit user groups
+                                            - 2 = Only organization administrators can create and edit
+                                              user groups
+                                            - 3 = Only [full members][calc-full-member] can create and
+                                              edit user groups.
+                                            - 4 = Only organization administrators and moderators can
+                                              create and edit user groups.
+
+                                            [calc-full-member]: /api/roles-and-permissions#determining-if-a-user-is-a-full-member
                                     can_create_public_channel_group:
                                       allOf:
                                         - $ref: "#/components/schemas/GroupSettingValue"
@@ -4735,20 +4779,6 @@ paths:
                                         primarily relevant to clients containing UI for changing it.
 
                                         **Changes**: New in Zulip 9.0 (feature level 242).
-                                    user_group_edit_policy:
-                                      type: integer
-                                      description: |
-                                        The organization's [policy][permission-level] for
-                                        [who can manage user groups][user-group-permissions].
-
-                                        - 1 = All members can create and edit user groups
-                                        - 2 = Only organization administrators can create and edit user groups
-                                        - 3 = Only [full members][calc-full-member] can create and edit user groups
-                                        - 4 = Only organization administrators and moderators can create and edit user groups
-
-                                        [user-group-permissions]: /help/user-groups#configure-who-can-create-and-manage-user-groups
-                                        [permission-level]: /api/roles-and-permissions#permission-levels
-                                        [calc-full-member]: /api/roles-and-permissions#determining-if-a-user-is-a-full-member
                                     video_chat_provider:
                                       type: integer
                                       description: |
@@ -16050,6 +16080,50 @@ paths:
 
                           The [policy](/api/roles-and-permissions#permission-levels)
                           for which users can create bot users in this organization.
+                      realm_can_create_groups:
+                        allOf:
+                          - $ref: "#/components/schemas/GroupSettingValue"
+                          - description: |
+                              A [group-setting value](/api/group-setting-values) defining
+                              the set of users who have permission to create user
+                              groups in this organization.
+
+                              This setting cannot be set to `"role:internet"`, `"role:everyone"`,
+                              and `"role:nobody"` system groups.
+
+                              **Changes**: New in Zulip 10.0 (feature level 299). Previously
+                              `realm_user_group_edit_policy` field used to control the
+                              permission to create user groups.
+                      realm_can_manage_all_groups:
+                        allOf:
+                          - $ref: "#/components/schemas/GroupSettingValue"
+                          - description: |
+                              A [group-setting value](/api/group-setting-values)
+                              defining the set of users who have permission to
+                              administer all existing groups in this organization.
+
+                              This setting cannot be set to `"role:internet"`, `"role:everyone"`,
+                              and `"role:nobody"` system groups.
+
+                              **Changes**: Semantics to change in Zulip 10.0 (feature
+                              level TBD). The original implementation of this setting
+                              had different semantics, where only users who were a
+                              member of the group or had the moderator role or above
+                              could exercise the permission.
+
+                              New in Zulip 10.0 (feature level 299). Previously the
+                              `user_group_edit_policy` field controlled the permission
+                              to manage user groups. Valid values were as follows:
+
+                              - 1 = All members can create and edit user groups
+                              - 2 = Only organization administrators can create and edit
+                                user groups
+                              - 3 = Only [full members][calc-full-member] can create and
+                                edit user groups.
+                              - 4 = Only organization administrators and moderators can
+                                create and edit user groups.
+
+                              [calc-full-member]: /api/roles-and-permissions#determining-if-a-user-is-a-full-member
                       realm_can_create_public_channel_group:
                         allOf:
                           - $ref: "#/components/schemas/GroupSettingValue"
@@ -16521,22 +16595,6 @@ paths:
                               `private_message_policy` realm setting, which supported values of
                               1 (enabled) and 2 (disabled).
                           - $ref: "#/components/schemas/GroupSettingValue"
-                      realm_user_group_edit_policy:
-                        type: integer
-                        description: |
-                          Present if `realm` is present in `fetch_event_types`.
-
-                          The organization's [policy][permission-level] for
-                          [who can manage user groups][user-group-permissions].
-
-                          - 1 = All members can create and edit user groups
-                          - 2 = Only organization administrators can create and edit user groups
-                          - 3 = Only [full members][calc-full-member] can create and edit user groups.
-                          - 4 = Only organization administrators and moderators can create and edit user groups.
-
-                          [user-group-permissions]: /help/user-groups#configure-who-can-create-and-manage-user-groups
-                          [permission-level]: /api/roles-and-permissions#permission-levels
-                          [calc-full-member]: /api/roles-and-permissions#determining-if-a-user-is-a-full-member
                       realm_default_code_block_language:
                         type: string
                         description: |
@@ -20651,6 +20709,44 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/SimpleSuccess"
+        "400":
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - allOf:
+                      - $ref: "#/components/schemas/CodedError"
+                      - example:
+                          {
+                            "code": "BAD_REQUEST",
+                            "msg": "Invalid user group",
+                            "result": "error",
+                          }
+                        description: |
+                          An example JSON response when the user group ID is invalid.
+                  - allOf:
+                      - $ref: "#/components/schemas/CodedError"
+                      - example:
+                          {
+                            "code": "CANNOT_DEACTIVATE_GROUP_IN_USE",
+                            "msg": "Cannot deactivate user group in use.",
+                            "objections":
+                              [
+                                {
+                                  "type": "realm",
+                                  "settings":
+                                    ["can_create_public_channel_group"],
+                                },
+                              ],
+                            "result": "error",
+                          }
+                        description: |
+                          An example JSON response when the user group being deactivated
+                          is used for a setting or as a subgroup.
+
+                          **Changes**: New in Zulip 10.0 (feature level 298). Previously,
+                          this error returned the `"BAD_REQUEST"` code.
   /real-time:
     # This entry is a hack; it exists to give us a place to put the text
     # documenting the parameters for call_on_each_event and friends.
@@ -23844,7 +23940,7 @@ components:
         The ID of the target user group.
       schema:
         type: integer
-      example: 33
+      example: 34
       required: true
     QueueId:
       name: queue_id

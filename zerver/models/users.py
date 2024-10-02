@@ -787,6 +787,8 @@ class UserProfile(AbstractBaseUser, PermissionsMixin, UserBaseSettings):
 
         if policy_name not in [
             "add_custom_emoji_policy",
+            "can_create_groups",
+            "can_manage_all_groups",
             "can_create_private_channel_group",
             "can_create_public_channel_group",
             "can_create_web_public_channel_group",
@@ -799,7 +801,6 @@ class UserProfile(AbstractBaseUser, PermissionsMixin, UserBaseSettings):
             "invite_to_stream_policy",
             "invite_to_realm_policy",
             "move_messages_between_streams_policy",
-            "user_group_edit_policy",
         ]:
             raise AssertionError("Invalid policy")
 
@@ -871,10 +872,10 @@ class UserProfile(AbstractBaseUser, PermissionsMixin, UserBaseSettings):
         return self.has_permission("move_messages_between_streams_policy")
 
     def can_create_user_groups(self) -> bool:
-        return self.has_permission("user_group_edit_policy")
+        return self.has_permission("can_create_groups")
 
-    def can_edit_all_user_groups(self) -> bool:
-        return self.has_permission("user_group_edit_policy")
+    def can_manage_all_groups(self) -> bool:
+        return self.has_permission("can_manage_all_groups")
 
     def can_move_messages_to_another_topic(self) -> bool:
         return self.has_permission("edit_topic_policy")

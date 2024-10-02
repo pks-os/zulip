@@ -183,6 +183,13 @@ export const presence_schema = z.object({
     idle_timestamp: z.number().optional(),
 });
 
+export const saved_snippet_schema = z.object({
+    id: z.number(),
+    title: z.string(),
+    content: z.string(),
+    date_created: z.number(),
+});
+
 const one_time_notice_schema = z.object({
     name: z.string(),
     type: z.literal("one_time_notice"),
@@ -278,6 +285,8 @@ const realm_schema = z.object({
     realm_bot_creation_policy: z.number(),
     realm_bot_domain: z.string(),
     realm_can_access_all_users_group: z.number(),
+    realm_can_create_groups: z.number(),
+    realm_can_manage_all_groups: z.number(),
     realm_can_create_public_channel_group: z.number(),
     realm_can_create_private_channel_group: z.number(),
     realm_can_create_web_public_channel_group: z.number(),
@@ -376,7 +385,6 @@ const realm_schema = z.object({
     realm_signup_announcements_stream_id: z.number(),
     realm_upload_quota_mib: z.nullable(z.number()),
     realm_url: z.string(),
-    realm_user_group_edit_policy: z.number(),
     realm_video_chat_provider: z.number(),
     realm_waiting_period_threshold: z.number(),
     realm_want_advertise_in_communities_directory: NOT_TYPED_YET,
@@ -444,6 +452,11 @@ export const state_data_schema = z
                 presence_last_update_id: z.number().optional(),
             })
             .transform((presence) => ({presence})),
+    )
+    .and(
+        z
+            .object({saved_snippets: z.array(saved_snippet_schema)})
+            .transform((saved_snippets) => ({saved_snippets})),
     )
     .and(
         z

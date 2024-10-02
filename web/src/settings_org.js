@@ -125,7 +125,6 @@ export function get_org_type_dropdown_options() {
 
 const simple_dropdown_properties = [
     "realm_invite_to_stream_policy",
-    "realm_user_group_edit_policy",
     "realm_add_custom_emoji_policy",
     "realm_invite_to_realm_policy",
     "realm_wildcard_mention_policy",
@@ -511,6 +510,8 @@ export function discard_realm_property_element_changes(elem) {
         case "realm_direct_message_initiator_group":
         case "realm_direct_message_permission_group":
         case "realm_can_access_all_users_group":
+        case "realm_can_create_groups":
+        case "realm_can_manage_all_groups":
         case "realm_can_create_public_channel_group":
         case "realm_can_create_private_channel_group":
         case "realm_can_create_web_public_channel_group":
@@ -843,6 +844,7 @@ export function set_up_dropdown_widget_for_realm_group_settings() {
         ) {
             dropdown_list_item_click_callback = check_disable_message_delete_limit_setting_dropdown;
         }
+
         set_up_dropdown_widget(
             "realm_" + setting_name,
             get_setting_options,

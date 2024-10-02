@@ -2,6 +2,7 @@ import $ from "jquery";
 
 import render_confirm_delete_user from "../templates/confirm_dialog/confirm_delete_user.hbs";
 import render_browse_user_groups_list_item from "../templates/user_group_settings/browse_user_groups_list_item.hbs";
+import render_cannot_deactivate_group_banner from "../templates/user_group_settings/cannot_deactivate_group_banner.hbs";
 import render_change_user_group_info_modal from "../templates/user_group_settings/change_user_group_info_modal.hbs";
 import render_user_group_settings from "../templates/user_group_settings/user_group_settings.hbs";
 import render_user_group_settings_overlay from "../templates/user_group_settings/user_group_settings_overlay.hbs";
@@ -26,6 +27,7 @@ import * as settings_org from "./settings_org";
 import {current_user, realm} from "./state_data";
 import * as stream_data from "./stream_data";
 import * as timerender from "./timerender";
+import * as ui_report from "./ui_report";
 import * as user_group_components from "./user_group_components";
 import * as user_group_create from "./user_group_create";
 import * as user_group_edit_members from "./user_group_edit_members";
@@ -85,7 +87,7 @@ function update_add_members_elements(group) {
     const $input_element = $add_members_container.find(".input").expectOne();
     const $button_element = $add_members_container.find('button[name="add_member"]').expectOne();
 
-    if (settings_data.can_edit_user_group(group.id)) {
+    if (settings_data.can_manage_user_group(group.id)) {
         $input_element.prop("contenteditable", true);
         $button_element.prop("disabled", false);
         $button_element.css("pointer-events", "");
@@ -118,7 +120,7 @@ function update_group_permission_settings_elements(group) {
 
     const $permission_pill_container_elements = $group_permission_settings.find(".pill-container");
 
-    if (settings_data.can_edit_user_group(group.id)) {
+    if (settings_data.can_manage_user_group(group.id)) {
         $permission_dropdown_elements.prop("disabled", false);
         $permission_pill_container_elements.find(".input").prop("contenteditable", true);
         $permission_pill_container_elements.removeClass("group_setting_disabled");
@@ -185,7 +187,7 @@ function show_general_settings(group) {
 function update_general_panel_ui(group) {
     const $edit_container = get_edit_container(group);
 
-    if (settings_data.can_edit_user_group(group.id)) {
+    if (settings_data.can_manage_user_group(group.id)) {
         $edit_container.find(".group-header .button-group").show();
         $(`.group_settings_header[data-group-id='${CSS.escape(group.id)}'] .deactivate`).show();
     } else {
@@ -256,7 +258,7 @@ function update_group_membership_button(group_id) {
         $group_settings_button.text($t({defaultMessage: "Join group"}));
     }
 
-    if (settings_data.can_edit_user_group(group_id)) {
+    if (settings_data.can_manage_user_group(group_id)) {
         $group_settings_button.prop("disabled", false);
         $group_settings_button.css("pointer-events", "");
         const $group_settings_button_wrapper = $group_settings_button.closest(
@@ -296,7 +298,7 @@ export function handle_member_edit_event(group_id, user_ids) {
             // is added to it. The whole list is redrawed to
             // maintain the sorted order of groups.
             redraw_user_group_list();
-        } else if (!settings_data.can_edit_user_group(group_id)) {
+        } else if (!settings_data.can_manage_user_group(group_id)) {
             // We remove the group row immediately only if the
             // user cannot join the group again themselves.
             const group_row = row_for_group_id(group_id);
@@ -313,7 +315,7 @@ export function handle_member_edit_event(group_id, user_ids) {
 
         const item = group;
         item.is_member = user_groups.is_user_in_group(group_id, people.my_current_user_id());
-        item.can_edit = settings_data.can_edit_user_group(item.id);
+        item.can_edit = settings_data.can_manage_user_group(item.id);
         const html = render_browse_user_groups_list_item(item);
         const $new_row = $(html);
 
@@ -829,7 +831,7 @@ export function setup_page(callback) {
                     people.my_current_user_id(),
                     item.id,
                 );
-                item.can_edit = settings_data.can_edit_user_group(item.id);
+                item.can_edit = settings_data.can_manage_user_group(item.id);
                 return render_browse_user_groups_list_item(item);
             },
             filter: {
@@ -874,6 +876,45 @@ export function setup_page(callback) {
     populate_and_fill();
 }
 
+function parse_args_for_deactivation_banner(objections) {
+    const args = {
+        streams_using_group_for_setting: [],
+        groups_using_group_for_setting: [],
+        realm_using_group_for_setting: false,
+    };
+    for (const objection of objections) {
+        if (objection.type === "channel") {
+            const stream_id = objection.channel_id;
+            const sub = stream_data.get_sub_by_id(stream_id);
+            if (sub !== undefined) {
+                args.streams_using_group_for_setting.push({
+                    stream_name: sub.name,
+                    setting_url: hash_util.channels_settings_edit_url(sub, "general"),
+                });
+            } else {
+                args.streams_using_group_for_setting.push({
+                    stream_name: $t({defaultMessage: "Unknown channel"}),
+                    setting_url: undefined,
+                });
+            }
+            continue;
+        }
+
+        if (objection.type === "user_group") {
+            const group_id = objection.group_id;
+            const group = user_groups.get_user_group_from_id(group_id);
+            const setting_url = hash_util.group_edit_url(group, "general");
+            args.groups_using_group_for_setting.push({group_name: group.name, setting_url});
+            continue;
+        }
+
+        if (objection.type === "realm") {
+            args.realm_using_group_for_setting = true;
+        }
+    }
+    return args;
+}
+
 export function initialize() {
     $("#groups_overlay_container").on("click", ".group-row", function (e) {
         if ($(e.target).closest(".check, .user_group_settings_wrapper").length === 0) {
@@ -915,17 +956,37 @@ export function initialize() {
         const group_id = active_group_data.id;
         const user_group = user_groups.get_user_group_from_id(group_id);
 
-        if (!user_group || !settings_data.can_edit_user_group(group_id)) {
+        if (!user_group || !settings_data.can_manage_user_group(group_id)) {
             return;
         }
         function deactivate_user_group() {
-            const url = "/json/user_groups/" + group_id + "/deactivate";
-            const opts = {
-                success_continuation() {
+            channel.post({
+                url: "/json/user_groups/" + group_id + "/deactivate",
+                data: {},
+                success() {
+                    dialog_widget.close();
                     active_group_data.$row.remove();
                 },
-            };
-            dialog_widget.submit_api_request(channel.post, url, {}, opts);
+                error(xhr) {
+                    dialog_widget.hide_dialog_spinner();
+                    if (xhr.responseJSON.code === "CANNOT_DEACTIVATE_GROUP_IN_USE") {
+                        $("#deactivation-confirm-modal .dialog_submit_button").prop(
+                            "disabled",
+                            true,
+                        );
+                        const objections = xhr.responseJSON.objections;
+                        const template_args = parse_args_for_deactivation_banner(objections);
+                        const rendered_error_banner =
+                            render_cannot_deactivate_group_banner(template_args);
+                        $("#dialog_error")
+                            .html(rendered_error_banner)
+                            .addClass("alert-error")
+                            .show();
+                    } else {
+                        ui_report.error($t({defaultMessage: "Failed"}), xhr, $("#dialog_error"));
+                    }
+                },
+            });
         }
 
         const html_body = render_confirm_delete_user({
@@ -943,6 +1004,7 @@ export function initialize() {
             on_click: deactivate_user_group,
             close_on_submit: false,
             loading_spinner: true,
+            id: "deactivation-confirm-modal",
         });
     });
 

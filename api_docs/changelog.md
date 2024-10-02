@@ -20,6 +20,31 @@ format used by the Zulip server that they are interacting with.
 
 ## Changes in Zulip 10.0
 
+**Feature level 299**
+
+* `PATCH /realm`, [`POST /register`](/api/register-queue),
+  [`GET /events`](/api/get-events): Added `can_create_groups`
+  realm setting, which is a [group-setting value](/api/group-setting-values)
+  describing the set of users with permission to create user groups.
+* `PATCH /realm`, [`POST /register`](/api/register-queue),
+  [`GET /events`](/api/get-events): Added `can_manage_all_groups`
+  realm setting, which is a [group-setting value](/api/group-setting-values)
+  describing the set of users with permission to manage all user groups.
+* `PATCH /realm`, [`GET /events`](/api/get-events): Removed
+  `user_group_edit_policy` property, as the permission to create user
+  groups is now controlled by `can_create_groups` setting and permission to
+  manage groups in now controlled by `can_manage_all_groups` setting.
+* [`POST /register`](/api/register-queue): `user_group_edit_policy`
+  field is deprecated, having been replaced by `can_create_groups` for user
+  group creation and `can_manage_all_groups` for user group management.
+
+**Feature level 298**
+
+* [`POST /user_groups/{user_group_id}/deactivate`](/api/deactivate-user-group):
+  Server now returns a specific error response (`"code": CANNOT_DEACTIVATE_GROUP_IN_USE`)
+  when a user group cannot be deactivated because it is in use. The
+  error response contains details about where the user group is being used.
+
 **Feature level 297**
 
 * [`GET /events`](/api/get-events), [`POST /register`](/api/register-queue):
