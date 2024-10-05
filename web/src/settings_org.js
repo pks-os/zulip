@@ -511,12 +511,12 @@ export function discard_realm_property_element_changes(elem) {
         case "realm_direct_message_permission_group":
         case "realm_can_access_all_users_group":
         case "realm_can_create_groups":
-        case "realm_can_manage_all_groups":
         case "realm_can_create_public_channel_group":
         case "realm_can_create_private_channel_group":
         case "realm_can_create_web_public_channel_group":
         case "realm_can_delete_any_message_group":
         case "realm_can_delete_own_message_group":
+        case "realm_can_manage_all_groups":
             settings_components.set_dropdown_list_widget_setting_value(
                 property_name,
                 property_value,
@@ -617,7 +617,8 @@ export function discard_group_property_element_changes(elem, group) {
     if (property_name === "can_mention_group") {
         settings_components.set_dropdown_list_widget_setting_value(property_name, property_value);
     } else if (property_name === "can_manage_group") {
-        settings_components.set_group_setting_widget_value(property_name, property_value);
+        const pill_widget = settings_components.get_group_setting_widget(property_name);
+        settings_components.set_group_setting_widget_value(pill_widget, property_value);
     } else if (property_value !== undefined) {
         settings_components.set_input_element_value($elem, property_value);
     } else {

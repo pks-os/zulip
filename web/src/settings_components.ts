@@ -483,12 +483,12 @@ const dropdown_widget_map = new Map<string, DropdownWidget | null>([
     ["realm_can_access_all_users_group", null],
     ["can_mention_group", null],
     ["realm_can_create_groups", null],
-    ["realm_can_manage_all_groups", null],
     ["realm_can_create_public_channel_group", null],
     ["realm_can_create_private_channel_group", null],
     ["realm_can_create_web_public_channel_group", null],
     ["realm_can_delete_any_message_group", null],
     ["realm_can_delete_own_message_group", null],
+    ["realm_can_manage_all_groups", null],
     ["realm_direct_message_initiator_group", null],
     ["realm_direct_message_permission_group", null],
 ]);
@@ -698,8 +698,12 @@ export function get_input_element_value(
             return $input_elem.find(".language_selection_button span").attr("data-language-code");
         case "auth-methods":
             return JSON.stringify(get_auth_method_list_data());
-        case "group-setting-type":
-            return get_group_setting_widget_value($input_elem);
+        case "group-setting-type": {
+            const setting_name = extract_property_name($input_elem);
+            const pill_widget = get_group_setting_widget(setting_name);
+            assert(pill_widget !== null);
+            return get_group_setting_widget_value(pill_widget);
+        }
         default:
             return undefined;
     }
@@ -804,12 +808,12 @@ export function check_realm_settings_property_changed(elem: HTMLElement): boolea
         case "realm_create_multiuse_invite_group":
         case "realm_can_access_all_users_group":
         case "realm_can_create_groups":
-        case "realm_can_manage_all_groups":
         case "realm_can_create_public_channel_group":
         case "realm_can_create_private_channel_group":
         case "realm_can_create_web_public_channel_group":
         case "realm_can_delete_any_message_group":
         case "realm_can_delete_own_message_group":
+        case "realm_can_manage_all_groups":
         case "realm_direct_message_initiator_group":
         case "realm_direct_message_permission_group":
             proposed_val = get_dropdown_list_widget_setting_value($elem);
@@ -875,11 +879,9 @@ export function check_stream_settings_property_changed(
     return current_val !== proposed_val;
 }
 
-export function get_group_setting_widget_value($input_elem: JQuery): GroupSettingType {
-    const setting_name = extract_property_name($input_elem);
-    const pill_widget = get_group_setting_widget(setting_name);
-    assert(pill_widget !== null);
-
+export function get_group_setting_widget_value(
+    pill_widget: GroupSettingPillContainer,
+): GroupSettingType {
     const setting_pills = pill_widget.items();
     const direct_subgroups: number[] = [];
     const direct_members: number[] = [];
@@ -915,9 +917,12 @@ export function check_group_property_changed(elem: HTMLElement, group: UserGroup
     const current_val = get_group_property_value(property_name, group);
     let proposed_val;
     switch (property_name) {
-        case "can_manage_group":
-            proposed_val = get_group_setting_widget_value($elem);
+        case "can_manage_group": {
+            const pill_widget = get_group_setting_widget(property_name);
+            assert(pill_widget !== null);
+            proposed_val = get_group_setting_widget_value(pill_widget);
             break;
+        }
         case "can_mention_group":
             proposed_val = get_dropdown_list_widget_setting_value($elem);
             break;
@@ -1041,10 +1046,10 @@ export function populate_data_for_realm_settings_request(
 
                 const realm_group_settings_using_new_api_format = new Set([
                     "can_create_groups",
-                    "can_manage_all_groups",
                     "can_create_private_channel_group",
                     "can_create_public_channel_group",
                     "can_create_web_public_channel_group",
+                    "can_manage_all_groups",
                     "can_delete_any_message_group",
                     "can_delete_own_message_group",
                     "direct_message_initiator_group",
@@ -1399,7 +1404,6 @@ export function initialize_disable_btn_hint_popover(
 
 const group_setting_widget_map = new Map<string, GroupSettingPillContainer | null>([
     ["can_manage_group", null],
-    ["new_group_can_manage_group", null],
 ]);
 
 export function get_group_setting_widget(setting_name: string): GroupSettingPillContainer | null {
@@ -1414,11 +1418,9 @@ export function get_group_setting_widget(setting_name: string): GroupSettingPill
 }
 
 export function set_group_setting_widget_value(
-    property_name: string,
+    pill_widget: GroupSettingPillContainer,
     property_value: GroupSettingType,
 ): void {
-    const pill_widget = get_group_setting_widget(property_name);
-    assert(pill_widget !== null);
     pill_widget.clear();
 
     if (typeof property_value === "number") {
@@ -1456,7 +1458,7 @@ export function create_group_setting_widget({
     setting_name: group_setting_name;
     setting_type: "realm" | "stream" | "group";
     group?: UserGroup;
-}): void {
+}): GroupSettingPillContainer {
     const pill_widget = group_setting_pill.create_pills(
         $pill_container,
         setting_name,
@@ -1469,14 +1471,12 @@ export function create_group_setting_widget({
     };
     group_setting_pill.set_up_pill_typeahead({pill_widget, $pill_container, opts});
 
-    if (group === undefined) {
-        group_setting_widget_map.set("new_group_" + setting_name, pill_widget);
-    } else {
+    if (group !== undefined) {
         group_setting_widget_map.set(setting_name, pill_widget);
     }
 
     if (group !== undefined) {
-        set_group_setting_widget_value(setting_name, group[setting_name]);
+        set_group_setting_widget_value(pill_widget, group[setting_name]);
 
         pill_widget.onPillCreate(() => {
             save_discard_group_widget_status_handler($("#group_permission_settings"), group);
@@ -1490,13 +1490,15 @@ export function create_group_setting_widget({
             "group",
         )!.default_group_name;
         if (default_group_name === "group_creator") {
-            set_group_setting_widget_value("new_group_" + setting_name, {
+            set_group_setting_widget_value(pill_widget, {
                 direct_members: [current_user.user_id],
                 direct_subgroups: [],
             });
         } else {
             const default_group_id = user_groups.get_user_group_from_name(default_group_name)!.id;
-            set_group_setting_widget_value("new_group_" + setting_name, default_group_id);
+            set_group_setting_widget_value(pill_widget, default_group_id);
         }
     }
+
+    return pill_widget;
 }

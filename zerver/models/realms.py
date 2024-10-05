@@ -704,6 +704,15 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
             id_field_name="can_access_all_users_group_id",
             allowed_system_groups=[SystemGroups.EVERYONE, SystemGroups.MEMBERS],
         ),
+        can_create_groups=GroupPermissionSetting(
+            require_system_group=False,
+            allow_internet_group=False,
+            allow_owners_group=True,
+            allow_nobody_group=False,
+            allow_everyone_group=False,
+            default_group_name=SystemGroups.MEMBERS,
+            id_field_name="can_create_groups_id",
+        ),
         can_create_public_channel_group=GroupPermissionSetting(
             require_system_group=False,
             allow_internet_group=False,
@@ -721,6 +730,21 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
             allow_everyone_group=False,
             default_group_name=SystemGroups.MEMBERS,
             id_field_name="can_create_private_channel_group_id",
+        ),
+        can_create_web_public_channel_group=GroupPermissionSetting(
+            require_system_group=True,
+            allow_internet_group=False,
+            allow_owners_group=True,
+            allow_nobody_group=True,
+            allow_everyone_group=False,
+            default_group_name=SystemGroups.OWNERS,
+            id_field_name="can_create_web_public_channel_group_id",
+            allowed_system_groups=[
+                SystemGroups.MODERATORS,
+                SystemGroups.ADMINISTRATORS,
+                SystemGroups.OWNERS,
+                SystemGroups.NOBODY,
+            ],
         ),
         can_delete_any_message_group=GroupPermissionSetting(
             require_system_group=False,
@@ -740,6 +764,15 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
             default_group_name=SystemGroups.EVERYONE,
             id_field_name="can_delete_own_message_group_id",
         ),
+        can_manage_all_groups=GroupPermissionSetting(
+            require_system_group=False,
+            allow_internet_group=False,
+            allow_owners_group=True,
+            allow_nobody_group=False,
+            allow_everyone_group=False,
+            default_group_name=SystemGroups.OWNERS,
+            id_field_name="can_manage_all_groups_id",
+        ),
         direct_message_initiator_group=GroupPermissionSetting(
             require_system_group=False,
             allow_internet_group=False,
@@ -758,51 +791,18 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
             default_group_name=SystemGroups.EVERYONE,
             id_field_name="direct_message_permission_group_id",
         ),
-        can_create_web_public_channel_group=GroupPermissionSetting(
-            require_system_group=True,
-            allow_internet_group=False,
-            allow_owners_group=True,
-            allow_nobody_group=True,
-            allow_everyone_group=False,
-            default_group_name=SystemGroups.OWNERS,
-            id_field_name="can_create_web_public_channel_group_id",
-            allowed_system_groups=[
-                SystemGroups.MODERATORS,
-                SystemGroups.ADMINISTRATORS,
-                SystemGroups.OWNERS,
-                SystemGroups.NOBODY,
-            ],
-        ),
-        can_create_groups=GroupPermissionSetting(
-            require_system_group=False,
-            allow_internet_group=False,
-            allow_owners_group=True,
-            allow_nobody_group=False,
-            allow_everyone_group=False,
-            default_group_name=SystemGroups.MEMBERS,
-            id_field_name="can_create_groups_id",
-        ),
-        can_manage_all_groups=GroupPermissionSetting(
-            require_system_group=False,
-            allow_internet_group=False,
-            allow_owners_group=True,
-            allow_nobody_group=False,
-            allow_everyone_group=False,
-            default_group_name=SystemGroups.OWNERS,
-            id_field_name="can_manage_all_groups_id",
-        ),
     )
 
     REALM_PERMISSION_GROUP_SETTINGS_WITH_NEW_API_FORMAT = [
+        "can_create_groups",
         "can_create_private_channel_group",
         "can_create_public_channel_group",
         "can_create_web_public_channel_group",
         "can_delete_any_message_group",
         "can_delete_own_message_group",
+        "can_manage_all_groups",
         "direct_message_initiator_group",
         "direct_message_permission_group",
-        "can_create_groups",
-        "can_manage_all_groups",
     ]
 
     DIGEST_WEEKDAY_VALUES = [0, 1, 2, 3, 4, 5, 6]
@@ -1166,6 +1166,8 @@ def get_realm_with_settings(realm_id: int) -> Realm:
     return Realm.objects.select_related(
         "can_access_all_users_group",
         "can_access_all_users_group__named_user_group",
+        "can_create_groups",
+        "can_create_groups__named_user_group",
         "can_create_public_channel_group",
         "can_create_public_channel_group__named_user_group",
         "can_create_private_channel_group",
@@ -1176,14 +1178,12 @@ def get_realm_with_settings(realm_id: int) -> Realm:
         "can_delete_any_message_group__named_user_group",
         "can_delete_own_message_group",
         "can_delete_own_message_group__named_user_group",
+        "can_manage_all_groups",
+        "can_manage_all_groups__named_user_group",
         "direct_message_initiator_group",
         "direct_message_initiator_group__named_user_group",
         "direct_message_permission_group",
         "direct_message_permission_group__named_user_group",
-        "can_create_groups",
-        "can_create_groups__named_user_group",
-        "can_manage_all_groups",
-        "can_manage_all_groups__named_user_group",
         "new_stream_announcements_stream",
         "signup_announcements_stream",
         "zulip_update_announcements_stream",
@@ -1313,12 +1313,36 @@ def get_fake_email_domain(realm_host: str) -> str:
     return settings.FAKE_EMAIL_DOMAIN
 
 
-# TODO: Move this into a new ReamExport model.
-EXPORT_PUBLIC = 1
-EXPORT_FULL_WITH_CONSENT = 2
-EXPORT_FULL_WITHOUT_CONSENT = 3
-EXPORT_TYPES = [
-    EXPORT_PUBLIC,
-    EXPORT_FULL_WITH_CONSENT,
-    EXPORT_FULL_WITHOUT_CONSENT,
-]
+class RealmExport(models.Model):
+    """Every data export is recorded in this table."""
+
+    realm = models.ForeignKey(Realm, on_delete=CASCADE)
+
+    EXPORT_PUBLIC = 1
+    EXPORT_FULL_WITH_CONSENT = 2
+    EXPORT_FULL_WITHOUT_CONSENT = 3
+    EXPORT_TYPES = [
+        EXPORT_PUBLIC,
+        EXPORT_FULL_WITH_CONSENT,
+        EXPORT_FULL_WITHOUT_CONSENT,
+    ]
+    type = models.PositiveSmallIntegerField(default=EXPORT_PUBLIC)
+
+    REQUESTED = 1
+    STARTED = 2
+    SUCCEEDED = 3
+    FAILED = 4
+    DELETED = 5
+    status = models.PositiveSmallIntegerField(default=REQUESTED)
+
+    date_requested = models.DateTimeField()
+    date_started = models.DateTimeField(default=None, null=True)
+    date_succeeded = models.DateTimeField(default=None, null=True)
+    date_failed = models.DateTimeField(default=None, null=True)
+    date_deleted = models.DateTimeField(default=None, null=True)
+
+    acting_user = models.ForeignKey("UserProfile", null=True, on_delete=models.SET_NULL)
+    export_path = models.TextField(default=None, null=True)
+    sha256sum_hex = models.CharField(default=None, null=True, max_length=64)
+    tarball_size_bytes = models.PositiveIntegerField(default=None, null=True)
+    stats = models.JSONField(default=None, null=True)

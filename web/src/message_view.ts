@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/browser";
+import {SPAN_STATUS_OK} from "@sentry/core";
 import $ from "jquery";
 import assert from "minimalistic-assert";
 import {z} from "zod";
@@ -772,7 +773,7 @@ export function show(raw_terms: NarrowTerm[], show_opts: ShowMessageViewOpts): v
             op: "function",
         };
         await Sentry.startSpan(post_span_context, async () => {
-            span?.setStatus("ok");
+            span?.setStatus({code: SPAN_STATUS_OK});
             await new Promise((resolve) => setTimeout(resolve, 0));
             resize.resize_stream_filters_container();
         });
@@ -898,7 +899,7 @@ function min_defined(a: number | undefined, b: number | undefined): number | und
     if (b === undefined) {
         return a;
     }
-    return a < b ? a : b;
+    return Math.min(a, b);
 }
 
 function load_local_messages(msg_data: MessageListData, superset_data: MessageListData): boolean {
