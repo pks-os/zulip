@@ -4304,9 +4304,6 @@ paths:
                                             the set of users who have permission to create user
                                             groups in this organization.
 
-                                            This setting cannot be set to `"role:internet"`, `"role:everyone"`,
-                                            and `"role:nobody"` system groups.
-
                                             **Changes**: New in Zulip 10.0 (feature level 299). Previously
                                             `user_group_edit_policy` field used to control the permission
                                             to create user groups.
@@ -4317,9 +4314,6 @@ paths:
                                             A [group-setting value](/api/group-setting-values)
                                             defining the set of users who have permission to
                                             administer all existing groups in this organization.
-
-                                            This setting cannot be set to `"role:internet"`, `"role:everyone"`,
-                                            and `"role:nobody"` system groups.
 
                                             **Changes**: Semantics to change in Zulip 10.0 (feature
                                             level TBD). The original implementation of this setting
@@ -4348,9 +4342,6 @@ paths:
                                             the set of users who have permission to create public
                                             channels in this organization.
 
-                                            This setting cannot be set to `"role:internet"`, `"role:everyone"`,
-                                            `"role:owners"` and `"role:nobody"` system groups.
-
                                             **Changes**: New in Zulip 9.0 (feature level 264). Previously
                                             `realm_create_public_stream_policy` field used to control the
                                             permission to create public channels.
@@ -4362,9 +4353,6 @@ paths:
                                             the set of users who have permission to create private
                                             channels in this organization.
 
-                                            This setting cannot be set to `"role:internet"`, `"role:everyone"`,
-                                            `"role:owners"` and `"role:nobody"` system groups.
-
                                             **Changes**: New in Zulip 9.0 (feature level 266). Previously
                                             `realm_create_private_stream_policy` field used to control the
                                             permission to create private channels.
@@ -4375,10 +4363,6 @@ paths:
                                             A [group-setting value](/api/group-setting-values) defining
                                             the set of users who have permission to create web-public
                                             channels in this organization.
-
-                                            This setting can only be set to `"role:moderators"`,
-                                            `"role:administrators"`, `"role:owners"` and
-                                            `"role:nobody"` system groups.
 
                                             **Changes**: New in Zulip 10.0 (feature level 280). Previously
                                             `realm_create_web_public_stream_policy` field used to control
@@ -6479,33 +6463,37 @@ paths:
       summary: Get messages
       tags: ["messages"]
       description: |
-        Fetch user's message history from a Zulip server.
+        This endpoint is the primary way to fetch a messages. It is used by all official
+        Zulip clients (e.g. the web, desktop, mobile, and terminal clients) as well as
+        many bots, API clients, backup scripts, etc.
 
-        This endpoint is the primary way to fetch a user's message history
-        from a Zulip server. It is useful both for Zulip clients (e.g. the
-        web, desktop, mobile, and terminal clients) as well as bots, API
-        clients, backup scripts, etc.
+        Most queries will specify a [narrow filter](/api/get-messages#parameter-narrow),
+        to fetch the messages matching any supported [search
+        query](/help/search-for-messages). If not specified, it will return messages
+        corresponding to the user's [combined feed](/help/combined-feed). There are two
+        ways to specify which messages matching the narrow filter to fetch:
+
+        - A range of messages, described by an `anchor` message ID (or a string-format
+          specification of how the server should computer an anchor to use) and a maximum
+          number of messages in each direction from that anchor.
+
+        - A rarely used variant (`message_ids`) where the client specifies the message IDs
+          to fetch.
+
+        The server returns the matching messages, sorted by message ID, as well as some
+        metadata that makes it easy for a client to determine whether there are more
+        messages matching the query that were not returned due to the `num_before` and
+        `num_after` limits.
 
         Note that a user's message history does not contain messages sent to
         channels before they [subscribe](/api/subscribe), and newly created
         bot users are not usually subscribed to any channels.
 
-        By specifying a [narrow filter](/api/get-messages#parameter-narrow),
-        you can use this endpoint to fetch the messages matching any search
-        query that is supported by Zulip's powerful full-text search backend.
+        We recommend requesting at most 1000 messages in a batch, to avoid generating very
+        large HTTP responses. A maximum of 5000 messages can be obtained per request;
+        attempting to exceed this will result in an error.
 
-        In either case, you specify an `anchor` message (or ask the server to
-        calculate the first unread message for you and use that as the
-        anchor), as well as a number of messages before and after the anchor
-        message. The server returns those messages, sorted by message ID, as
-        well as some metadata that makes it easy for a client to determine
-        whether there are more messages matching the query that were not
-        returned due to the `num_before` and `num_after` limits.
-
-        We recommend setting `num_before` and `num_after` to no more than 1000, to
-        avoid generating very large HTTP responses. A maximum of 5000 messages
-        can be obtained per request; attempting to exceed this will result in an
-        error.
+        **Changes**: The `message_ids` option is new in Zulip 10.0 (feature level 300).
       x-curl-examples-parameters:
         oneOf:
           - type: exclude
@@ -6515,6 +6503,7 @@ paths:
                 - apply_markdown
                 - use_first_unread_anchor
                 - include_anchor
+                - message_ids
       parameters:
         - name: anchor
           in: query
@@ -6554,20 +6543,22 @@ paths:
           in: query
           description: |
             The number of messages with IDs less than the anchor to retrieve.
+            Required if `message_ids` is not provided.
           schema:
             type: integer
             minimum: 0
           example: 4
-          required: true
+          required: false
         - name: num_after
           in: query
           description: |
             The number of messages with IDs greater than the anchor to retrieve.
+            Required if `message_ids` is not provided.
           schema:
             type: integer
             minimum: 0
           example: 8
-          required: true
+          required: false
         - name: narrow
           in: query
           description: |
@@ -6648,6 +6639,26 @@ paths:
             type: boolean
             default: false
           example: true
+        - name: message_ids
+          in: query
+          description: |
+            A list of message IDs to fetch. The server will return messages corresponding to the
+            subset of the requested message IDs that exist and the current user has access to,
+            potentially filtered by the narrow (if that parameter is provided).
+
+            It is an error to pass this parameter as well as any of the parameters involved in
+            specifying a range of messages: `anchor`, `include_anchor`, `use_first_unread_anchor`,
+            `num_before`, and `num_after`.
+
+            **Changes**: New in Zulip 10.0 (feature level 300). Previously, there was
+            no way to request a specific set of messages IDs.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: integer
+              example: [1, 2, 3]
       responses:
         "200":
           description: Success.
@@ -6657,6 +6668,10 @@ paths:
                 allOf:
                   - $ref: "#/components/schemas/JsonSuccessBase"
                   - additionalProperties: false
+                    required:
+                      - result
+                      - msg
+                      - messages
                     properties:
                       result: {}
                       msg: {}
@@ -6666,6 +6681,8 @@ paths:
                         description: |
                           The same `anchor` specified in the request (or the computed one, if
                           `use_first_unread_anchor` is `true`).
+
+                          Only present if `message_ids` is not provided.
                       found_newest:
                         type: boolean
                         description: |
@@ -16088,9 +16105,6 @@ paths:
                               the set of users who have permission to create user
                               groups in this organization.
 
-                              This setting cannot be set to `"role:internet"`, `"role:everyone"`,
-                              and `"role:nobody"` system groups.
-
                               **Changes**: New in Zulip 10.0 (feature level 299). Previously
                               `realm_user_group_edit_policy` field used to control the
                               permission to create user groups.
@@ -16101,9 +16115,6 @@ paths:
                               A [group-setting value](/api/group-setting-values)
                               defining the set of users who have permission to
                               administer all existing groups in this organization.
-
-                              This setting cannot be set to `"role:internet"`, `"role:everyone"`,
-                              and `"role:nobody"` system groups.
 
                               **Changes**: Semantics to change in Zulip 10.0 (feature
                               level TBD). The original implementation of this setting
@@ -16132,9 +16143,6 @@ paths:
                               the set of users who have permission to create public
                               channels in this organization.
 
-                              This setting cannot be set to `"role:internet"`, `"role:everyone"`,
-                              `"role:owners"` and `"role:nobody"` system groups.
-
                               **Changes**: New in Zulip 9.0 (feature level 264). Previously
                               `realm_create_public_stream_policy` field used to control the
                               permission to create public channels.
@@ -16146,9 +16154,6 @@ paths:
                               the set of users who have permission to create private
                               channels in this organization.
 
-                              This setting cannot be set to `"role:internet"`, `"role:everyone"`,
-                              `"role:owners"` and `"role:nobody"` system groups.
-
                               **Changes**: New in Zulip 9.0 (feature level 266). Previously
                               `realm_create_private_stream_policy` field used to control the
                               permission to create private channels.
@@ -16159,10 +16164,6 @@ paths:
                               A [group-setting value](/api/group-setting-values) defining
                               the set of users who have permission to create web-public
                               channels in this organization.
-
-                              This setting can only be set to `"role:moderators"`,
-                              `"role:administrators"`, `"role:owners"` and
-                              `"role:nobody"` system groups.
 
                               Has no effect and should not be displayed in settings UI
                               unless the Zulip server has the `WEB_PUBLIC_STREAMS_ENABLED`
@@ -18040,10 +18041,15 @@ paths:
                         description: |
                           Present if `realm` is present in `fetch_event_types`.
 
-                          Configuration for various group permission settings.
+                          Metadata detailing the valid values for permission settings that
+                          use [group-setting values](/api/group-setting-values). Clients
+                          should use these data as explained in the
+                          [main documentation](/api/group-setting-values#permitted-values)
+                          to determine what values to present as possible values for these
+                          settings in UI components.
 
-                          We consider this part of the Zulip API to be unstable
-                          and may change significantly in future versions.
+                          This part of the Zulip API is unstable and may change
+                          significantly in future versions.
 
                           **Changes**: New in Zulip 8.0 (feature level 221).
                         type: object
@@ -23016,6 +23022,9 @@ components:
           type: boolean
           description: |
             Whether the setting can be set to `role:everyone` system group.
+
+            If false, guest users cannot exercise this permission even if they are part of
+            the [group-setting value](/api/group-setting-values) for this setting.
         default_group_name:
           type: string
           description: |
