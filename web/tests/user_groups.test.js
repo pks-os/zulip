@@ -1,6 +1,6 @@
 "use strict";
 
-const {strict: assert} = require("assert");
+const assert = require("node:assert/strict");
 
 const {zrequire} = require("./lib/namespace");
 const {run_test} = require("./lib/test");
@@ -19,6 +19,7 @@ run_test("user_groups", () => {
         members: new Set([1, 2]),
         is_system_group: false,
         direct_subgroup_ids: new Set([4, 5]),
+        can_join_group: 1,
         can_manage_group: 1,
         can_mention_group: 2,
         deactivated: false,
@@ -41,6 +42,7 @@ run_test("user_groups", () => {
         members: new Set([3]),
         is_system_group: false,
         direct_subgroup_ids: new Set([]),
+        can_join_group: 1,
         can_manage_group: 1,
         can_mention_group: 2,
         deactivated: false,
@@ -51,6 +53,7 @@ run_test("user_groups", () => {
         members: new Set([1, 2, 3]),
         is_system_group: false,
         direct_subgroup_ids: new Set([4, 5, 6]),
+        can_join_group: 1,
         can_manage_group: 1,
         can_mention_group: 1,
         deactivated: false,
@@ -61,6 +64,7 @@ run_test("user_groups", () => {
         members: new Set([1, 2, 3]),
         is_system_group: false,
         direct_subgroup_ids: new Set([4, 5, 6]),
+        can_join_group: 1,
         can_manage_group: 1,
         can_mention_group: 1,
         deactivated: true,

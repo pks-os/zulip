@@ -1,6 +1,6 @@
 "use strict";
 
-const {strict: assert} = require("assert");
+const assert = require("node:assert/strict");
 
 const {mock_banners} = require("./lib/compose_banner");
 const {mock_esm, set_global, with_overrides, zrequire} = require("./lib/namespace");
@@ -440,6 +440,7 @@ const hamletcharacters = user_group_item({
     members: new Set([100, 104]),
     is_system_group: false,
     direct_subgroup_ids: new Set([]),
+    can_join_group: 2,
     can_manage_group: 2,
     can_mention_group: 2,
     deactivated: false,
@@ -454,6 +455,7 @@ const backend = user_group_item({
     members: new Set([101]),
     is_system_group: false,
     direct_subgroup_ids: new Set([1]),
+    can_join_group: 1,
     can_manage_group: 1,
     can_mention_group: 1,
     deactivated: false,
@@ -468,6 +470,7 @@ const call_center = user_group_item({
     members: new Set([102]),
     is_system_group: false,
     direct_subgroup_ids: new Set([]),
+    can_join_group: 2,
     can_manage_group: 2,
     can_mention_group: 2,
     deactivated: false,
