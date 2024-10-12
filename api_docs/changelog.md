@@ -20,6 +20,48 @@ format used by the Zulip server that they are interacting with.
 
 ## Changes in Zulip 10.0
 
+**Feature level 306**
+
+* [`GET /events`](/api/get-events): Removed the `extra_data` optional
+  field from the `realm/update` event format, which was only used for
+  `plan_type` events, with a single `upload_quota` field. Now, we use
+  a standard `realm/update_dict` event to notify clients about changes
+  in `plan_type` and other fields that atomically change with a given
+  change in plan.
+* [`GET /events`](/api/get-events): Added `max_file_upload_size_mib`
+  field to the `data` object in `realm/update_dict` event format;
+  previously, this was a constant. Note that the field does not have a
+  `realm_` prefix in the [`POST /register`](/api/register-queue)
+  response.
+
+**Feature level 305**
+
+* [`POST /register`](/api/register-queue), [`GET /events`](/api/get-events),
+  [`GET /user_groups`](/api/get-user-groups): Add `can_add_members_group` to
+  user group objects.
+* [`POST /user_groups/create`](/api/create-user-group): Added `can_add_members_group`
+  parameter to support setting the user group which can add members to the user
+  group.
+* [`PATCH /user_groups/{user_group_id}`](/api/update-user-group): Added
+  `can_add_members_group` parameter to support changing the user group which
+  can add members to the specified user group.
+* The `can_manage_all_groups` permission now has the natural semantics
+  of applying to all groups, regardless of the role of the user given
+  this permission. Since its introduction in feature level 299,
+  `can_manage_all_groups` had temporarily had unusual semantics
+  matching those of the original`user_group_edit_policy` setting.
+
+**Feature level 304**
+
+* [`GET /export/realm`](/api/get-realm-exports),
+  [`GET /events`](/api/get-events): Added `export_type` field
+  to the dictionaries in `exports` array. It indicates whether
+  the export is of public data or full data with user consent.
+
+* [`POST /export/realm`](/api/get-realm-exports): Added `export_type`
+  parameter to add support for admins to decide whether to create a
+  public data export or a full data export with member consent.
+
 **Feature level 303**
 
 * [`POST /register`](/api/register-queue), [`GET /user_groups`](/api/get-user-groups),

@@ -1,4 +1,5 @@
 import $ from "jquery";
+import _ from "lodash";
 import assert from "minimalistic-assert";
 import * as tippy from "tippy.js";
 import {z} from "zod";
@@ -22,7 +23,7 @@ import {realm_user_settings_defaults} from "./realm_user_settings_defaults";
 import * as scroll_util from "./scroll_util";
 import * as settings_config from "./settings_config";
 import * as settings_data from "./settings_data";
-import type {CustomProfileField, group_setting_type_schema} from "./state_data";
+import type {CustomProfileField, GroupSettingValue} from "./state_data";
 import {current_user, realm} from "./state_data";
 import * as stream_data from "./stream_data";
 import type {StreamSubscription} from "./sub_store";
@@ -216,7 +217,6 @@ export function get_subsection_property_elements($subsection: JQuery): HTMLEleme
 
 type simple_dropdown_realm_settings = Pick<
     typeof realm,
-    | "realm_create_private_stream_policy"
     | "realm_invite_to_stream_policy"
     | "realm_add_custom_emoji_policy"
     | "realm_invite_to_realm_policy"
@@ -650,7 +650,7 @@ function get_input_type($input_elem: JQuery, input_type?: string): string {
 export function get_input_element_value(
     input_elem: HTMLElement,
     input_type?: string,
-): boolean | number | string | null | undefined | GroupSettingType {
+): boolean | number | string | null | undefined | GroupSettingValue {
     const $input_elem = $(input_elem);
     input_type = get_input_type($input_elem, input_type);
     let input_value;
@@ -881,7 +881,7 @@ export function check_stream_settings_property_changed(
 
 export function get_group_setting_widget_value(
     pill_widget: GroupSettingPillContainer,
-): GroupSettingType {
+): GroupSettingValue {
     const setting_pills = pill_widget.items();
     const direct_subgroups: number[] = [];
     const direct_members: number[] = [];
@@ -917,6 +917,7 @@ export function check_group_property_changed(elem: HTMLElement, group: UserGroup
     const current_val = get_group_property_value(property_name, group);
     let proposed_val;
     switch (property_name) {
+        case "can_add_members_group":
         case "can_join_group":
         case "can_manage_group": {
             const pill_widget = get_group_setting_widget(property_name);
@@ -934,7 +935,7 @@ export function check_group_property_changed(elem: HTMLElement, group: UserGroup
                 blueslip.error("Element refers to unknown property", {property_name});
             }
     }
-    return current_val !== proposed_val;
+    return !_.isEqual(current_val, proposed_val);
 }
 
 export function check_custom_profile_property_changed(
@@ -1404,6 +1405,7 @@ export function initialize_disable_btn_hint_popover(
 }
 
 export const group_setting_widget_map = new Map<string, GroupSettingPillContainer | null>([
+    ["can_add_members_group", null],
     ["can_join_group", null],
     ["can_manage_group", null],
 ]);
@@ -1421,7 +1423,7 @@ export function get_group_setting_widget(setting_name: string): GroupSettingPill
 
 export function set_group_setting_widget_value(
     pill_widget: GroupSettingPillContainer,
-    property_value: GroupSettingType,
+    property_value: GroupSettingValue,
 ): void {
     pill_widget.clear();
 
@@ -1446,9 +1448,7 @@ export function set_group_setting_widget_value(
     }
 }
 
-export type GroupSettingType = z.output<typeof group_setting_type_schema>;
-
-type group_setting_name = "can_manage_group" | "can_join_group";
+type group_setting_name = "can_manage_group" | "can_join_group" | "can_add_members_group";
 
 export function create_group_setting_widget({
     $pill_container,

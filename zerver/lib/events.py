@@ -350,7 +350,7 @@ def fetch_initial_state_data(
 
         # Important: Encode units in the client-facing API name.
         state["max_avatar_file_size_mib"] = settings.MAX_AVATAR_FILE_SIZE_MIB
-        state["max_file_upload_size_mib"] = settings.MAX_FILE_UPLOAD_SIZE
+        state["max_file_upload_size_mib"] = realm.get_max_file_upload_size_mebibytes()
         state["max_icon_file_size_mib"] = settings.MAX_ICON_FILE_SIZE_MIB
         upload_quota_bytes = realm.upload_quota_bytes()
         state["realm_upload_quota_mib"] = optional_bytes_to_mib(upload_quota_bytes)
@@ -1279,13 +1279,6 @@ def apply_event(
             field = "realm_" + event["property"]
             state[field] = event["value"]
 
-            if event["property"] == "plan_type":
-                # Then there are some extra fields that also need to be set.
-                state["zulip_plan_is_not_limited"] = event["value"] != Realm.PLAN_TYPE_LIMITED
-                # upload_quota is in bytes, so we need to convert it to MiB.
-                upload_quota_bytes = event["extra_data"]["upload_quota"]
-                state["realm_upload_quota_mib"] = optional_bytes_to_mib(upload_quota_bytes)
-
             if field == "realm_jitsi_server_url":
                 state["jitsi_server_url"] = (
                     state["realm_jitsi_server_url"]
@@ -1315,6 +1308,10 @@ def apply_event(
                 )
         elif event["op"] == "update_dict":
             for key, value in event["data"].items():
+                if key == "max_file_upload_size_mib":
+                    state["max_file_upload_size_mib"] = value
+                    continue
+
                 state["realm_" + key] = value
                 # It's a bit messy, but this is where we need to
                 # update the state for whether password authentication
@@ -1363,6 +1360,10 @@ def apply_event(
                         or state["can_create_public_streams"]
                         or state["can_create_web_public_streams"]
                     )
+
+                if key == "plan_type":
+                    # Then there are some extra fields that also need to be set.
+                    state["zulip_plan_is_not_limited"] = value != Realm.PLAN_TYPE_LIMITED
         elif event["op"] == "deactivated":
             # The realm has just been deactivated.  If our request had
             # arrived a moment later, we'd have rendered the

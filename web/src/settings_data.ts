@@ -4,7 +4,7 @@ import * as group_permission_settings from "./group_permission_settings";
 import {page_params} from "./page_params";
 import * as settings_config from "./settings_config";
 import {current_user, realm} from "./state_data";
-import type {GroupSettingType} from "./state_data";
+import type {GroupSettingValue} from "./state_data";
 import * as user_groups from "./user_groups";
 import {user_settings} from "./user_settings";
 
@@ -110,7 +110,7 @@ function user_has_permission(policy_value: number): boolean {
 }
 
 export function user_has_permission_for_group_setting(
-    setting_group_id: GroupSettingType,
+    setting_group_id: GroupSettingValue,
     setting_name: string,
     setting_type: "realm" | "stream" | "group",
 ): boolean {
@@ -192,19 +192,9 @@ export function can_manage_user_group(group_id: number): boolean {
         return false;
     }
 
-    let can_manage_all_groups = user_can_manage_all_groups();
-
     const group = user_groups.get_user_group_from_id(group_id);
 
-    if (
-        !current_user.is_admin &&
-        !current_user.is_moderator &&
-        !user_groups.is_direct_member_of(current_user.user_id, group_id)
-    ) {
-        can_manage_all_groups = false;
-    }
-
-    if (can_manage_all_groups) {
+    if (user_can_manage_all_groups()) {
         return true;
     }
 
@@ -213,6 +203,22 @@ export function can_manage_user_group(group_id: number): boolean {
         "can_manage_group",
         "group",
     );
+}
+
+export function can_add_members_to_user_group(group_id: number): boolean {
+    const group = user_groups.get_user_group_from_id(group_id);
+
+    if (
+        user_has_permission_for_group_setting(
+            group.can_add_members_group,
+            "can_add_members_group",
+            "group",
+        )
+    ) {
+        return true;
+    }
+
+    return can_manage_user_group(group_id);
 }
 
 export function can_join_user_group(group_id: number): boolean {

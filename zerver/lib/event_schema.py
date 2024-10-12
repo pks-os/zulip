@@ -833,6 +833,7 @@ export_type = DictType(
         ("deleted_timestamp", OptionalType(NumberType())),
         ("failed_timestamp", OptionalType(NumberType())),
         ("pending", bool),
+        ("export_type", int),
     ]
 )
 
@@ -888,12 +889,6 @@ realm_linkifiers_event = event_dict_type(
 check_realm_linkifiers = make_checker(realm_linkifiers_event)
 
 
-plan_type_extra_data_type = DictType(
-    required_keys=[
-        ("upload_quota", int),
-    ]
-)
-
 """
 realm/update events are flexible for values;
 we will use a more strict checker to check
@@ -905,10 +900,7 @@ realm_update_event = event_dict_type(
         ("op", Equals("update")),
         ("property", str),
         ("value", value_type),
-    ],
-    optional_keys=[
-        ("extra_data", plan_type_extra_data_type),
-    ],
+    ]
 )
 _check_realm_update = make_checker(realm_update_event)
 
@@ -933,13 +925,6 @@ def check_realm_update(
 
     assert prop == event["property"]
     value = event["value"]
-
-    if prop == "plan_type":
-        assert isinstance(value, int)
-        assert "extra_data" in event
-        return
-
-    assert "extra_data" not in event
 
     if prop in [
         "new_stream_announcements_stream_id",
@@ -1086,6 +1071,14 @@ group_setting_update_data_type = DictType(
     ],
 )
 
+plan_type_data = DictType(
+    required_keys=[
+        ("plan_type", int),
+        ("upload_quota_mib", OptionalType(int)),
+        ("max_file_upload_size_mib", int),
+    ],
+)
+
 update_dict_data = UnionType(
     [
         allow_message_editing_data,
@@ -1096,6 +1089,7 @@ update_dict_data = UnionType(
         message_content_edit_limit_seconds_data,
         night_logo_data,
         group_setting_update_data_type,
+        plan_type_data,
     ]
 )
 
@@ -1132,6 +1126,8 @@ def check_realm_update_dict(
             setting_name in event["data"] for setting_name in Realm.REALM_PERMISSION_GROUP_SETTINGS
         ):
             sub_type = group_setting_update_data_type
+        elif "plan_type" in event["data"]:
+            sub_type = plan_type_data
         else:
             raise AssertionError("unhandled fields in data")
 
@@ -1847,6 +1843,7 @@ group_type = DictType(
         ("direct_subgroup_ids", ListType(int)),
         ("description", str),
         ("is_system_group", bool),
+        ("can_add_members_group", group_setting_type),
         ("can_join_group", group_setting_type),
         ("can_manage_group", group_setting_type),
         ("can_mention_group", group_setting_type),
@@ -1897,6 +1894,7 @@ user_group_data_type = DictType(
     optional_keys=[
         ("name", str),
         ("description", str),
+        ("can_add_members_group", group_setting_type),
         ("can_join_group", group_setting_type),
         ("can_manage_group", group_setting_type),
         ("can_mention_group", group_setting_type),

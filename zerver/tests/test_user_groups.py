@@ -1292,10 +1292,6 @@ class UserGroupAPITestCase(UserGroupTestCase):
             acting_user=None,
         )
 
-        self.login("hamlet")
-        result = self.client_post(f"/json/user_groups/{support_group.id}/deactivate")
-        self.assert_json_error(result, "Insufficient permission")
-
         self.login("othello")
         result = self.client_post(f"/json/user_groups/{support_group.id}/deactivate")
         self.assert_json_success(result)
@@ -1615,7 +1611,7 @@ class UserGroupAPITestCase(UserGroupTestCase):
             for i in range(50)
         ]
 
-        with self.assert_database_query_count(7):
+        with self.assert_database_query_count(9):
             user_group = create_user_group_in_database(
                 name="support",
                 members=[hamlet, cordelia, *original_users],
@@ -1998,8 +1994,7 @@ class UserGroupAPITestCase(UserGroupTestCase):
         check_update_user_group("support1", "Support team - test", "iago")
         check_update_user_group("support", "Support team", "othello")
 
-        # Check only members are allowed to update the user group and only if belong to the
-        # user group.
+        # Check only members are allowed to update the user group.
         members_group = NamedUserGroup.objects.get(name=SystemGroups.MEMBERS, realm=realm)
         do_change_realm_permission_group_setting(
             realm,
@@ -2010,13 +2005,7 @@ class UserGroupAPITestCase(UserGroupTestCase):
         check_update_user_group(
             "help", "Troubleshooting team", "polonius", "Not allowed for guest users"
         )
-        check_update_user_group(
-            "help",
-            "Troubleshooting team",
-            "cordelia",
-            "Insufficient permission",
-        )
-        check_update_user_group("help", "Troubleshooting team", "othello")
+        check_update_user_group("help", "Troubleshooting team", "cordelia")
 
         # Check user who is member of a subgroup of the group being updated
         # can also update the group.
@@ -2182,8 +2171,7 @@ class UserGroupAPITestCase(UserGroupTestCase):
                 self.assert_json_error(result, error_msg)
 
         realm = get_realm("zulip")
-        # Check only admins are allowed to add/remove users from the group. Admins are allowed even if
-        # they are not a member of the group.
+        # Check only admins are allowed to add/remove users from the group.
         admins_group = NamedUserGroup.objects.get(name=SystemGroups.ADMINISTRATORS, realm=realm)
         do_change_realm_permission_group_setting(
             realm,
@@ -2197,8 +2185,7 @@ class UserGroupAPITestCase(UserGroupTestCase):
         check_removing_members_from_group("shiva", "Insufficient permission")
         check_removing_members_from_group("iago")
 
-        # Check moderators are allowed to add/remove users from the group but not members. Moderators are
-        # allowed even if they are not a member of the group.
+        # Check moderators are allowed to add/remove users from the group but not members.
         moderators_group = NamedUserGroup.objects.get(name=SystemGroups.MODERATORS, realm=realm)
         do_change_realm_permission_group_setting(
             realm,
@@ -2250,8 +2237,7 @@ class UserGroupAPITestCase(UserGroupTestCase):
         check_adding_members_to_group("othello")
         check_removing_members_from_group("othello")
 
-        # Check only members are allowed to add/remove users in the group and only if belong to the
-        # user group.
+        # Check only members are allowed to add/remove users in the group.
         members_group = NamedUserGroup.objects.get(name=SystemGroups.MEMBERS, realm=realm)
         do_change_realm_permission_group_setting(
             realm,
@@ -2260,15 +2246,18 @@ class UserGroupAPITestCase(UserGroupTestCase):
             acting_user=None,
         )
         check_adding_members_to_group("polonius", "Not allowed for guest users")
-        check_adding_members_to_group("cordelia", "Insufficient permission")
-        check_adding_members_to_group("othello")
 
+        # User with role member but not part of the target group should
+        # be allowed to add members to the group if they are part of
+        # `can_manage_all_groups`.
+        check_adding_members_to_group("cordelia")
+        check_removing_members_from_group("cordelia")
+
+        check_adding_members_to_group("othello")
         check_removing_members_from_group("polonius", "Not allowed for guest users")
-        check_removing_members_from_group("cordelia", "Insufficient permission")
         check_removing_members_from_group("othello")
 
-        # Check only full members are allowed to add/remove users in the group and only if belong to the
-        # user group.
+        # Check only full members are allowed to add/remove users in the group.
         full_members_group = NamedUserGroup.objects.get(name=SystemGroups.FULL_MEMBERS, realm=realm)
         do_change_realm_permission_group_setting(
             realm,
@@ -2286,7 +2275,12 @@ class UserGroupAPITestCase(UserGroupTestCase):
         cordelia.date_joined = timezone_now() - timedelta(days=11)
         cordelia.save()
         promote_new_full_members()
-        check_adding_members_to_group("cordelia", "Insufficient permission")
+
+        # Full members who are not part of the target group should
+        # be allowed to add members to the group if they are part of
+        # `can_manage_all_groups`.
+        check_adding_members_to_group("cordelia")
+        check_removing_members_from_group("cordelia")
 
         othello.date_joined = timezone_now() - timedelta(days=11)
         othello.save()
@@ -2297,7 +2291,6 @@ class UserGroupAPITestCase(UserGroupTestCase):
         othello.save()
         promote_new_full_members()
 
-        check_removing_members_from_group("cordelia", "Insufficient permission")
         check_removing_members_from_group("othello", "Insufficient permission")
 
         othello.date_joined = timezone_now() - timedelta(days=11)
@@ -2305,7 +2298,7 @@ class UserGroupAPITestCase(UserGroupTestCase):
         promote_new_full_members()
         check_removing_members_from_group("othello")
 
-    def test_group_level_setting_for_updating_members(self) -> None:
+    def test_group_level_setting_for_adding_members(self) -> None:
         othello = self.example_user("othello")
         user_group = check_add_user_group(
             get_realm("zulip"), "support", [othello], acting_user=self.example_user("desdemona")
@@ -2329,6 +2322,90 @@ class UserGroupAPITestCase(UserGroupTestCase):
                 self.assert_user_membership(user_group, [aaron, othello])
             else:
                 self.assert_json_error(result, error_msg)
+
+        realm = get_realm("zulip")
+        nobody_group = NamedUserGroup.objects.get(name=SystemGroups.NOBODY, realm=realm)
+        do_change_realm_permission_group_setting(
+            realm,
+            "can_manage_all_groups",
+            nobody_group,
+            acting_user=None,
+        )
+
+        # Default value of can_add_members_group is "group_creator".
+        check_adding_members_to_group("iago", "Insufficient permission")
+        check_adding_members_to_group("desdemona")
+        bulk_remove_members_from_user_groups([user_group], [aaron.id], acting_user=None)
+
+        # Remove aaron from group to add them again in further tests.
+        bulk_remove_members_from_user_groups([user_group], [aaron.id], acting_user=None)
+
+        # Test setting can_add_members_group to a system group.
+        system_group_dict = get_role_based_system_groups_dict(realm)
+        owners_group = system_group_dict[SystemGroups.OWNERS]
+        do_change_user_group_permission_setting(
+            user_group, "can_manage_group", nobody_group, acting_user=None
+        )
+        do_change_user_group_permission_setting(
+            user_group, "can_add_members_group", owners_group, acting_user=None
+        )
+
+        check_adding_members_to_group("iago", "Insufficient permission")
+        check_adding_members_to_group("desdemona")
+        bulk_remove_members_from_user_groups([user_group], [aaron.id], acting_user=None)
+
+        # Although we can't set this value to everyone via the API,
+        # it is a good way here to test whether guest users are allowed
+        # to take the action or not.
+        everyone_group = system_group_dict[SystemGroups.EVERYONE]
+        do_change_user_group_permission_setting(
+            user_group, "can_add_members_group", everyone_group, acting_user=None
+        )
+        check_adding_members_to_group("polonius", "Not allowed for guest users")
+        check_adding_members_to_group("cordelia")
+        bulk_remove_members_from_user_groups([user_group], [aaron.id], acting_user=None)
+
+        # Test setting can_add_members_group to an anonymous group with
+        # subgroups.
+        setting_group = self.create_or_update_anonymous_group_for_setting(
+            [self.example_user("cordelia")], [leadership_group, owners_group]
+        )
+        do_change_user_group_permission_setting(
+            user_group, "can_add_members_group", setting_group, acting_user=None
+        )
+        check_adding_members_to_group("iago", "Insufficient permission")
+        check_adding_members_to_group("hamlet")
+        bulk_remove_members_from_user_groups([user_group], [aaron.id], acting_user=None)
+
+        check_adding_members_to_group("cordelia")
+        bulk_remove_members_from_user_groups([user_group], [aaron.id], acting_user=None)
+
+        check_adding_members_to_group("desdemona")
+        bulk_remove_members_from_user_groups([user_group], [aaron.id], acting_user=None)
+
+        # If user is part of `can_manage_group`, they need not be part
+        # of `can_add_members_group` to add members.
+        othello_group = self.create_or_update_anonymous_group_for_setting([othello], [])
+        hamlet_group = self.create_or_update_anonymous_group_for_setting([hamlet], [])
+        do_change_user_group_permission_setting(
+            user_group, "can_manage_group", othello_group, acting_user=None
+        )
+        do_change_user_group_permission_setting(
+            user_group, "can_add_members_group", hamlet_group, acting_user=None
+        )
+        check_adding_members_to_group("othello")
+        bulk_remove_members_from_user_groups([user_group], [aaron.id], acting_user=None)
+
+    def test_group_level_setting_for_removing_members(self) -> None:
+        othello = self.example_user("othello")
+        user_group = check_add_user_group(
+            get_realm("zulip"), "support", [othello], acting_user=self.example_user("desdemona")
+        )
+        hamlet = self.example_user("hamlet")
+        leadership_group = check_add_user_group(
+            get_realm("zulip"), "leadership", [hamlet], acting_user=hamlet
+        )
+        aaron = self.example_user("aaron")
 
         def check_removing_members_from_group(
             acting_user: str, error_msg: str | None = None
@@ -2355,57 +2432,49 @@ class UserGroupAPITestCase(UserGroupTestCase):
             acting_user=None,
         )
 
-        # Default value of can_manage_group is "Nobody system group".
-        check_adding_members_to_group("iago", "Insufficient permission")
-        check_adding_members_to_group("othello", "Insufficient permission")
-
-        # Add aaron to group so that we can test the removal.
+        # Default value of can_add_members_group is "group_creator".
         bulk_add_members_to_user_groups([user_group], [aaron.id], acting_user=None)
-
         check_removing_members_from_group("iago", "Insufficient permission")
-        check_removing_members_from_group("othello", "Insufficient permission")
+        check_removing_members_from_group("desdemona")
 
-        # Remove aaron from group to add them again in further tests.
-        bulk_remove_members_from_user_groups([user_group], [aaron.id], acting_user=None)
-
+        # Test setting can_add_members_group to a system group.
         system_group_dict = get_role_based_system_groups_dict(realm)
         owners_group = system_group_dict[SystemGroups.OWNERS]
         do_change_user_group_permission_setting(
             user_group, "can_manage_group", owners_group, acting_user=None
         )
 
-        check_adding_members_to_group("iago", "Insufficient permission")
-        check_adding_members_to_group("desdemona")
-
+        bulk_add_members_to_user_groups([user_group], [aaron.id], acting_user=None)
         check_removing_members_from_group("iago", "Insufficient permission")
         check_removing_members_from_group("desdemona")
 
-        members_group = system_group_dict[SystemGroups.MEMBERS]
+        # Although we can't set this value to everyone via the API,
+        # it is a good way here to test whether guest users are allowed
+        # to take the action or not.
+        everyone_group = system_group_dict[SystemGroups.EVERYONE]
         do_change_user_group_permission_setting(
-            user_group, "can_manage_group", members_group, acting_user=None
+            user_group, "can_manage_group", everyone_group, acting_user=None
         )
-        check_adding_members_to_group("polonius", "Not allowed for guest users")
-        check_adding_members_to_group("cordelia")
-
+        bulk_add_members_to_user_groups([user_group], [aaron.id], acting_user=None)
         check_removing_members_from_group("polonius", "Not allowed for guest users")
         check_removing_members_from_group("cordelia")
 
+        # Test setting can_manage_group to an anonymous group with
+        # subgroups.
         setting_group = self.create_or_update_anonymous_group_for_setting(
             [self.example_user("cordelia")], [leadership_group, owners_group]
         )
         do_change_user_group_permission_setting(
             user_group, "can_manage_group", setting_group, acting_user=None
         )
-        check_adding_members_to_group("iago", "Insufficient permission")
-        check_adding_members_to_group("hamlet")
-
+        bulk_add_members_to_user_groups([user_group], [aaron.id], acting_user=None)
         check_removing_members_from_group("iago", "Insufficient permission")
         check_removing_members_from_group("hamlet")
 
-        check_adding_members_to_group("cordelia")
+        bulk_add_members_to_user_groups([user_group], [aaron.id], acting_user=None)
         check_removing_members_from_group("cordelia")
 
-        check_adding_members_to_group("desdemona")
+        bulk_add_members_to_user_groups([user_group], [aaron.id], acting_user=None)
         check_removing_members_from_group("desdemona")
 
     def test_adding_yourself_to_group(self) -> None:
