@@ -3,9 +3,9 @@ import {z} from "zod";
 import {server_add_bot_schema} from "./bot_types";
 import {realm_default_settings_schema} from "./realm_user_settings_defaults";
 import {
+    api_stream_subscription_schema,
     never_subscribed_stream_schema,
     stream_schema,
-    stream_subscription_schema,
 } from "./stream_types";
 import {user_settings_schema} from "./user_settings";
 import {user_status_schema} from "./user_status_types";
@@ -136,7 +136,7 @@ export const group_setting_value_schema = z.union([z.number(), anonymous_group_s
 
 export type GroupSettingValue = z.infer<typeof group_setting_value_schema>;
 
-export const user_group_schema = z.object({
+export const raw_user_group_schema = z.object({
     description: z.string(),
     id: z.number(),
     creator_id: z.number().nullable(),
@@ -147,6 +147,7 @@ export const user_group_schema = z.object({
     direct_subgroup_ids: z.array(z.number()),
     can_add_members_group: group_setting_value_schema,
     can_join_group: group_setting_value_schema,
+    can_leave_group: group_setting_value_schema,
     can_manage_group: group_setting_value_schema,
     can_mention_group: z.number(),
     deactivated: z.boolean(),
@@ -249,7 +250,7 @@ const custom_profile_field_types_schema = z.object({
 export type CustomProfileFieldTypes = z.infer<typeof custom_profile_field_types_schema>;
 
 // Sync this with zerver.lib.events.do_events_register.
-const realm_schema = z.object({
+export const realm_schema = z.object({
     custom_profile_fields: z.array(custom_profile_field_schema),
     custom_profile_field_types: custom_profile_field_types_schema,
     demo_organization_scheduled_deletion_date: z.optional(z.number()),
@@ -472,8 +473,8 @@ export const state_data_schema = z
     .and(
         z
             .object({
-                subscriptions: z.array(stream_subscription_schema),
-                unsubscribed: z.array(stream_subscription_schema),
+                subscriptions: z.array(api_stream_subscription_schema),
+                unsubscribed: z.array(api_stream_subscription_schema),
                 never_subscribed: z.array(never_subscribed_stream_schema),
                 realm_default_streams: z.array(stream_schema),
             })
@@ -481,7 +482,7 @@ export const state_data_schema = z
     )
     .and(
         z
-            .object({realm_user_groups: z.array(user_group_schema)})
+            .object({realm_user_groups: z.array(raw_user_group_schema)})
             .transform((user_groups) => ({user_groups})),
     )
     .and(

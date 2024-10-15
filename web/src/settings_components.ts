@@ -19,14 +19,18 @@ import {
     NON_COMPACT_MODE_LINE_HEIGHT_PERCENT,
 } from "./information_density";
 import * as people from "./people";
-import {realm_user_settings_defaults} from "./realm_user_settings_defaults";
+import {
+    realm_default_settings_schema,
+    realm_user_settings_defaults,
+} from "./realm_user_settings_defaults";
 import * as scroll_util from "./scroll_util";
 import * as settings_config from "./settings_config";
 import * as settings_data from "./settings_data";
 import type {CustomProfileField, GroupSettingValue} from "./state_data";
-import {current_user, realm} from "./state_data";
+import {current_user, realm, realm_schema} from "./state_data";
 import * as stream_data from "./stream_data";
 import type {StreamSubscription} from "./sub_store";
+import {stream_subscription_schema} from "./sub_store";
 import type {GroupSettingPillContainer} from "./typeahead_helper";
 import type {HTMLSelectOneElement} from "./types";
 import * as user_group_pill from "./user_group_pill";
@@ -43,7 +47,7 @@ type SettingOptionValue = {
     description: string;
 };
 
-type SettingOptionValueWithKey = SettingOptionValue & {key: string};
+export type SettingOptionValueWithKey = SettingOptionValue & {key: string};
 
 export function get_sorted_options_list(
     option_values_object: Record<string, SettingOptionValue>,
@@ -76,10 +80,13 @@ export function get_sorted_options_list(
     return options_list;
 }
 
-type MessageTimeLimitSetting =
-    | "realm_message_content_edit_limit_seconds"
-    | "realm_move_messages_between_streams_limit_seconds"
+export type MessageMoveTimeLimitSetting =
     | "realm_move_messages_within_stream_limit_seconds"
+    | "realm_move_messages_between_streams_limit_seconds";
+
+export type MessageTimeLimitSetting =
+    | MessageMoveTimeLimitSetting
+    | "realm_message_content_edit_limit_seconds"
     | "realm_message_content_delete_limit_seconds";
 
 export function get_realm_time_limits_in_minutes(property: MessageTimeLimitSetting): string {
@@ -96,19 +103,31 @@ export function get_realm_time_limits_in_minutes(property: MessageTimeLimitSetti
 }
 
 type RealmSetting = typeof realm;
-type RealmSettingProperties = keyof RealmSetting | "realm_org_join_restrictions";
+export const realm_setting_property_schema = z.union([
+    realm_schema.keyof(),
+    z.literal("realm_org_join_restrictions"),
+]);
+type RealmSettingProperty = z.infer<typeof realm_setting_property_schema>;
 
 type RealmUserSettingDefaultType = typeof realm_user_settings_defaults;
-type RealmUserSettingDefaultProperties =
-    | keyof RealmUserSettingDefaultType
-    | "email_notification_batching_period_edit_minutes";
+export const realm_user_settings_default_properties_schema = z.union([
+    realm_default_settings_schema.keyof(),
+    z.literal("email_notification_batching_period_edit_minutes"),
+]);
+type RealmUserSettingDefaultProperties = z.infer<
+    typeof realm_user_settings_default_properties_schema
+>;
 
-type StreamSettingProperties = keyof StreamSubscription | "stream_privacy" | "is_default_stream";
+export const stream_settings_property_schema = z.union([
+    stream_subscription_schema.keyof(),
+    z.enum(["stream_privacy", "is_default_stream"]),
+]);
+type StreamSettingProperty = z.infer<typeof stream_settings_property_schema>;
 
 type valueof<T> = T[keyof T];
 
 export function get_realm_settings_property_value(
-    property_name: RealmSettingProperties,
+    property_name: RealmSettingProperty,
 ): valueof<RealmSetting> {
     if (property_name === "realm_org_join_restrictions") {
         if (realm.realm_emails_restricted_to_domains) {
@@ -127,7 +146,7 @@ export function get_realm_settings_property_value(
 }
 
 export function get_stream_settings_property_value(
-    property_name: StreamSettingProperties,
+    property_name: StreamSettingProperty,
     sub: StreamSubscription,
 ): valueof<StreamSubscription> {
     if (property_name === "stream_privacy") {
@@ -215,23 +234,23 @@ export function get_subsection_property_elements($subsection: JQuery): HTMLEleme
     return [...$subsection.find(".prop-element")];
 }
 
-type simple_dropdown_realm_settings = Pick<
-    typeof realm,
-    | "realm_invite_to_stream_policy"
-    | "realm_invite_to_realm_policy"
-    | "realm_wildcard_mention_policy"
-    | "realm_move_messages_between_streams_policy"
-    | "realm_edit_topic_policy"
-    | "realm_org_type"
->;
+export const simple_dropdown_realm_settings_schema = realm_schema.pick({
+    realm_invite_to_stream_policy: true,
+    realm_invite_to_realm_policy: true,
+    realm_wildcard_mention_policy: true,
+    realm_move_messages_between_streams_policy: true,
+    realm_edit_topic_policy: true,
+    realm_org_type: true,
+});
+export type SimpleDropdownRealmSettings = z.infer<typeof simple_dropdown_realm_settings_schema>;
 
 export function set_property_dropdown_value(
-    property_name: keyof simple_dropdown_realm_settings,
+    property_name: keyof SimpleDropdownRealmSettings,
 ): void {
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     const property_value = get_realm_settings_property_value(
         property_name,
-    ) as valueof<simple_dropdown_realm_settings>;
+    ) as valueof<SimpleDropdownRealmSettings>;
     $(`#id_${CSS.escape(property_name)}`).val(property_value);
 }
 
@@ -638,7 +657,7 @@ export function change_save_button_state($element: JQuery, state: string): void 
     });
 }
 
-function get_input_type($input_elem: JQuery, input_type?: string): string {
+export function get_input_type($input_elem: JQuery, input_type?: string): string {
     if (input_type !== undefined && ["boolean", "string", "number"].includes(input_type)) {
         return input_type;
     }
@@ -794,7 +813,7 @@ export function check_realm_settings_property_changed(elem: HTMLElement): boolea
     const $elem = $(elem);
 
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-    const property_name = extract_property_name($elem) as RealmSettingProperties;
+    const property_name = extract_property_name($elem) as RealmSettingProperty;
     const current_val = get_realm_settings_property_value(property_name);
     let proposed_val;
     switch (property_name) {
@@ -856,7 +875,7 @@ export function check_stream_settings_property_changed(
 ): boolean {
     const $elem = $(elem);
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-    const property_name = extract_property_name($elem) as StreamSettingProperties;
+    const property_name = extract_property_name($elem) as StreamSettingProperty;
     const current_val = get_stream_settings_property_value(property_name, sub);
     let proposed_val;
     switch (property_name) {
@@ -920,6 +939,7 @@ export function check_group_property_changed(elem: HTMLElement, group: UserGroup
     switch (property_name) {
         case "can_add_members_group":
         case "can_join_group":
+        case "can_leave_group":
         case "can_manage_group": {
             const pill_widget = get_group_setting_widget(property_name);
             assert(pill_widget !== null);
@@ -1062,7 +1082,7 @@ export function populate_data_for_realm_settings_request(
                 if (realm_group_settings_using_new_api_format.has(property_name)) {
                     const old_value = get_realm_settings_property_value(
                         // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-                        ("realm_" + property_name) as RealmSettingProperties,
+                        ("realm_" + property_name) as RealmSettingProperty,
                     );
                     data[property_name] = JSON.stringify({
                         new: input_value,
@@ -1409,6 +1429,7 @@ export function initialize_disable_btn_hint_popover(
 export const group_setting_widget_map = new Map<string, GroupSettingPillContainer | null>([
     ["can_add_members_group", null],
     ["can_join_group", null],
+    ["can_leave_group", null],
     ["can_manage_group", null],
 ]);
 
@@ -1450,7 +1471,11 @@ export function set_group_setting_widget_value(
     }
 }
 
-type group_setting_name = "can_manage_group" | "can_join_group" | "can_add_members_group";
+type group_setting_name =
+    | "can_add_members_group"
+    | "can_join_group"
+    | "can_leave_group"
+    | "can_manage_group";
 
 export function create_group_setting_widget({
     $pill_container,

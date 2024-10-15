@@ -1,5 +1,5 @@
 import assert from "minimalistic-assert";
-import type {z} from "zod";
+import {z} from "zod";
 
 import * as blueslip from "./blueslip";
 import {FoldDict} from "./fold_dict";
@@ -7,26 +7,22 @@ import * as group_permission_settings from "./group_permission_settings";
 import {$t} from "./i18n";
 import {page_params} from "./page_params";
 import * as settings_config from "./settings_config";
-import type {
-    GroupPermissionSetting,
-    GroupSettingValue,
-    StateData,
-    user_group_schema,
-} from "./state_data";
-import {current_user, realm} from "./state_data";
+import type {GroupPermissionSetting, GroupSettingValue, StateData} from "./state_data";
+import {current_user, raw_user_group_schema, realm} from "./state_data";
 import type {UserOrMention} from "./typeahead_helper";
 import type {UserGroupUpdateEvent} from "./types";
 
-type UserGroupRaw = z.infer<typeof user_group_schema>;
+type UserGroupRaw = z.infer<typeof raw_user_group_schema>;
 
 // The members field is a number array which we convert
 // to a Set in the initialize function.
-export type UserGroup = Omit<UserGroupRaw, "members" | "direct_subgroup_ids"> & {
-    members: Set<number>;
-    direct_subgroup_ids: Set<number>;
-};
+export const user_group_schema = raw_user_group_schema.extend({
+    members: z.set(z.number()),
+    direct_subgroup_ids: z.set(z.number()),
+});
+export type UserGroup = z.infer<typeof user_group_schema>;
 
-type UserGroupForDropdownListWidget = {
+export type UserGroupForDropdownListWidget = {
     name: string;
     unique_id: number;
 };
@@ -57,6 +53,7 @@ export function add(user_group_raw: UserGroupRaw): UserGroup {
         direct_subgroup_ids: new Set(user_group_raw.direct_subgroup_ids),
         can_add_members_group: user_group_raw.can_add_members_group,
         can_join_group: user_group_raw.can_join_group,
+        can_leave_group: user_group_raw.can_leave_group,
         can_manage_group: user_group_raw.can_manage_group,
         can_mention_group: user_group_raw.can_mention_group,
         deactivated: user_group_raw.deactivated,
@@ -123,6 +120,12 @@ export function update(event: UserGroupUpdateEvent): void {
 
     if (event.data.can_join_group !== undefined) {
         group.can_join_group = event.data.can_join_group;
+        user_group_name_dict.delete(group.name);
+        user_group_name_dict.set(group.name, group);
+    }
+
+    if (event.data.can_leave_group !== undefined) {
+        group.can_leave_group = event.data.can_leave_group;
         user_group_name_dict.delete(group.name);
         user_group_name_dict.set(group.name, group);
     }
