@@ -704,7 +704,7 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
             allowed_system_groups=[SystemGroups.EVERYONE, SystemGroups.MEMBERS],
         ),
         can_add_custom_emoji_group=GroupPermissionSetting(
-            require_system_group=False,
+            require_system_group=not settings.ALLOW_GROUP_VALUED_SETTINGS,
             allow_internet_group=False,
             allow_owners_group=False,
             allow_nobody_group=False,
@@ -713,7 +713,7 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
             id_field_name="can_add_custom_emoji_group_id",
         ),
         can_create_groups=GroupPermissionSetting(
-            require_system_group=False,
+            require_system_group=not settings.ALLOW_GROUP_VALUED_SETTINGS,
             allow_internet_group=False,
             allow_owners_group=True,
             allow_nobody_group=False,
@@ -722,7 +722,7 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
             id_field_name="can_create_groups_id",
         ),
         can_create_public_channel_group=GroupPermissionSetting(
-            require_system_group=False,
+            require_system_group=not settings.ALLOW_GROUP_VALUED_SETTINGS,
             allow_internet_group=False,
             allow_owners_group=False,
             allow_nobody_group=False,
@@ -731,7 +731,7 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
             id_field_name="can_create_public_channel_group_id",
         ),
         can_create_private_channel_group=GroupPermissionSetting(
-            require_system_group=False,
+            require_system_group=not settings.ALLOW_GROUP_VALUED_SETTINGS,
             allow_internet_group=False,
             allow_owners_group=False,
             allow_nobody_group=False,
@@ -755,7 +755,7 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
             ],
         ),
         can_delete_any_message_group=GroupPermissionSetting(
-            require_system_group=False,
+            require_system_group=not settings.ALLOW_GROUP_VALUED_SETTINGS,
             allow_internet_group=False,
             allow_owners_group=False,
             allow_nobody_group=False,
@@ -764,7 +764,7 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
             id_field_name="can_delete_any_message_group_id",
         ),
         can_delete_own_message_group=GroupPermissionSetting(
-            require_system_group=False,
+            require_system_group=not settings.ALLOW_GROUP_VALUED_SETTINGS,
             allow_internet_group=False,
             allow_owners_group=False,
             allow_nobody_group=False,
@@ -773,7 +773,7 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
             id_field_name="can_delete_own_message_group_id",
         ),
         can_manage_all_groups=GroupPermissionSetting(
-            require_system_group=False,
+            require_system_group=not settings.ALLOW_GROUP_VALUED_SETTINGS,
             allow_internet_group=False,
             allow_owners_group=True,
             allow_nobody_group=False,
@@ -782,7 +782,7 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
             id_field_name="can_manage_all_groups_id",
         ),
         direct_message_initiator_group=GroupPermissionSetting(
-            require_system_group=False,
+            require_system_group=not settings.ALLOW_GROUP_VALUED_SETTINGS,
             allow_internet_group=False,
             allow_owners_group=True,
             allow_nobody_group=True,
@@ -791,7 +791,7 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
             id_field_name="direct_message_initiator_group_id",
         ),
         direct_message_permission_group=GroupPermissionSetting(
-            require_system_group=False,
+            require_system_group=not settings.ALLOW_GROUP_VALUED_SETTINGS,
             allow_internet_group=False,
             allow_owners_group=True,
             allow_nobody_group=True,
@@ -1025,13 +1025,13 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
         if plan_type == Realm.PLAN_TYPE_SELF_HOSTED:
             return settings.MAX_FILE_UPLOAD_SIZE
         elif plan_type == Realm.PLAN_TYPE_LIMITED:
-            return 10
+            return min(10, settings.MAX_FILE_UPLOAD_SIZE)
         elif plan_type in [
             Realm.PLAN_TYPE_STANDARD,
             Realm.PLAN_TYPE_STANDARD_FREE,
             Realm.PLAN_TYPE_PLUS,
         ]:
-            return 1024
+            return min(1024, settings.MAX_FILE_UPLOAD_SIZE)
         else:
             raise AssertionError("Invalid plan type")
 

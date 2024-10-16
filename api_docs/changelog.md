@@ -20,6 +20,13 @@ format used by the Zulip server that they are interacting with.
 
 ## Changes in Zulip 10.0
 
+**Feature level 309**
+
+* [Group-setting values](/api/group-setting-values): Starting with
+  this feature level, it's now possible to use group-setting values in
+  production for those settings whose value is not required to be a
+  system group
+
 **Feature level 308**
 
 * [`POST /register`](/api/register-queue), [`GET /events`](/api/get-events),
@@ -79,11 +86,12 @@ format used by the Zulip server that they are interacting with.
 * [`GET /export/realm`](/api/get-realm-exports),
   [`GET /events`](/api/get-events): Added `export_type` field
   to the dictionaries in `exports` array. It indicates whether
-  the export is of public data or full data with user consent.
+  the export is of public data or full data with user consent
+  (standard export).
 
 * [`POST /export/realm`](/api/get-realm-exports): Added `export_type`
   parameter to add support for admins to decide whether to create a
-  public data export or a full data export with member consent.
+  public or a standard data export.
 
 **Feature level 303**
 
@@ -185,8 +193,8 @@ format used by the Zulip server that they are interacting with.
 **Feature level 295**
 
 * [`GET /export/realm/consents`](/api/get-realm-export-consents): Added
-  a new endpoint to fetch the consents of users for their [private data
-  exports](/help/export-your-organization#full-export-with-member-consent).
+  a new endpoint to fetch the [consents of users](/help/export-your-organization#configure-whether-administrators-can-export-your-private-data)
+  for their private data exports.
 * `/api/v1/tus` is an endpoint implementing the [`tus`
   protocol](https://tus.io/protocols/resumable-upload) for resumable uploads.
   Clients which send authenticated credentials (either via browser-based
