@@ -57,6 +57,7 @@ def add_user_group(
     name: str,
     members: Json[list[int]],
     description: str,
+    subgroups: Json[list[int]] | None = None,
     can_add_members_group: Json[int | AnonymousSettingGroupDict] | None = None,
     can_join_group: Json[int | AnonymousSettingGroupDict] | None = None,
     can_leave_group: Json[int | AnonymousSettingGroupDict] | None = None,
@@ -84,7 +85,7 @@ def add_user_group(
             )
             group_settings_map[setting_name] = setting_value_group
 
-    check_add_user_group(
+    user_group = check_add_user_group(
         user_profile.realm,
         name,
         user_profiles,
@@ -92,6 +93,15 @@ def add_user_group(
         group_settings_map=group_settings_map,
         acting_user=user_profile,
     )
+
+    if subgroups is not None and len(subgroups) != 0:
+        with lock_subgroups_with_respect_to_supergroup(
+            subgroups, user_group.id, user_profile, permission_setting=None, creating_group=True
+        ) as context:
+            add_subgroups_to_user_group(
+                context.supergroup, context.direct_subgroups, acting_user=user_profile
+            )
+
     return json_success(request)
 
 
@@ -212,6 +222,7 @@ def deactivate_user_group(
 
 @require_member_or_admin
 @typed_endpoint
+@transaction.atomic(durable=True)
 def update_user_group_backend(
     request: HttpRequest,
     user_profile: UserProfile,
@@ -219,9 +230,15 @@ def update_user_group_backend(
     user_group_id: PathOnly[Json[int]],
     delete: Json[list[int]] | None = None,
     add: Json[list[int]] | None = None,
+    delete_subgroups: Json[list[int]] | None = None,
+    add_subgroups: Json[list[int]] | None = None,
 ) -> HttpResponse:
-    if not add and not delete:
-        raise JsonableError(_('Nothing to do. Specify at least one of "add" or "delete".'))
+    if not add and not delete and not add_subgroups and not delete_subgroups:
+        raise JsonableError(
+            _(
+                'Nothing to do. Specify at least one of "add", "delete", "add_subgroups" or "delete_subgroups".'
+            )
+        )
 
     thunks = []
     if add:
@@ -234,6 +251,20 @@ def update_user_group_backend(
         thunks.append(
             lambda: remove_members_from_group_backend(
                 request, user_profile, user_group_id=user_group_id, members=delete
+            )
+        )
+
+    if add_subgroups:
+        thunks.append(
+            lambda: add_subgroups_to_group_backend(
+                request, user_profile, user_group_id=user_group_id, subgroup_ids=add_subgroups
+            )
+        )
+
+    if delete_subgroups:
+        thunks.append(
+            lambda: remove_subgroups_from_group_backend(
+                request, user_profile, user_group_id=user_group_id, subgroup_ids=delete_subgroups
             )
         )
 
@@ -290,7 +321,6 @@ def notify_for_user_group_subscription_changes(
         do_send_messages(notifications)
 
 
-@transaction.atomic
 def add_members_to_group_backend(
     request: HttpRequest,
     user_profile: UserProfile,
@@ -337,7 +367,6 @@ def add_members_to_group_backend(
     return json_success(request)
 
 
-@transaction.atomic
 def remove_members_from_group_backend(
     request: HttpRequest,
     user_profile: UserProfile,
@@ -379,7 +408,7 @@ def add_subgroups_to_group_backend(
     subgroup_ids: list[int],
 ) -> HttpResponse:
     with lock_subgroups_with_respect_to_supergroup(
-        subgroup_ids, user_group_id, user_profile
+        subgroup_ids, user_group_id, user_profile, permission_setting="can_add_members_group"
     ) as context:
         existing_direct_subgroup_ids = context.supergroup.direct_subgroups.all().values_list(
             "id", flat=True
@@ -415,7 +444,7 @@ def remove_subgroups_from_group_backend(
     subgroup_ids: list[int],
 ) -> HttpResponse:
     with lock_subgroups_with_respect_to_supergroup(
-        subgroup_ids, user_group_id, user_profile
+        subgroup_ids, user_group_id, user_profile, permission_setting="can_manage_group"
     ) as context:
         # While the recursive subgroups in the context are not used, it is important that
         # we acquire a lock for these rows while updating the subgroups to acquire the locks

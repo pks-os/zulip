@@ -20,6 +20,14 @@ format used by the Zulip server that they are interacting with.
 
 ## Changes in Zulip 10.0
 
+**Feature level 311**
+
+* [`POST /user_groups/{user_group_id}/members`](/api/update-user-group-members):
+  Added `add_subgroups` and `delete_subgroups` parameters to support updating
+  subgroups of a user group using this endpoint.
+* [`POST /user_groups/create`](/api/create-user-group): Added `subgroups`
+  parameter to support setting subgroups of a user group during its creation.
+
 **Feature level 310**
 
 * `PATCH /realm`, [`GET /events`](/api/get-events),
@@ -116,7 +124,7 @@ format used by the Zulip server that they are interacting with.
   [group-setting value](/api/group-setting-values), will never include
   deactivated users in the `direct_members` list for settings whose
   value is an anonymous group.
-* [`PATCH /user_groups/{user_group_id}/members`](/api/update-user-group-members):
+* [`POST /user_groups/{user_group_id}/members`](/api/update-user-group-members):
   Deactivated users cannot be added or removed from a user group; they
   are now implicitly not members of any groups while deactivated.
 * [`GET /events`](/api/get-events): User reactivation event is not sent
