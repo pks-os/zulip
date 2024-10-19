@@ -22,6 +22,9 @@ import * as ui_report from "./ui_report";
 import * as util from "./util";
 
 let created_stream: string | undefined;
+// Default is true since the current user is added to
+// the subscribers list initially.
+let current_user_subscribed_to_created_stream = true;
 
 export function reset_created_stream(): void {
     created_stream = undefined;
@@ -33,6 +36,18 @@ export function set_name(stream: string): void {
 
 export function get_name(): string | undefined {
     return created_stream;
+}
+
+export function reset_current_user_subscribed_to_created_stream(): void {
+    current_user_subscribed_to_created_stream = true;
+}
+
+export function set_current_user_subscribed_to_created_stream(is_subscribed: boolean): void {
+    current_user_subscribed_to_created_stream = is_subscribed;
+}
+
+export function get_current_user_subscribed_to_created_stream(): boolean {
+    return current_user_subscribed_to_created_stream;
 }
 
 export function set_first_stream_created_modal_shown(): void {
@@ -317,6 +332,7 @@ function create_stream(): void {
     //       once we upgrade the backend to accept user_ids.
     const user_ids = stream_create_subscribers.get_principals();
     const principals = JSON.stringify(user_ids);
+    set_current_user_subscribed_to_created_stream(user_ids.includes(current_user.user_id));
 
     assert(stream_settings_components.new_stream_can_remove_subscribers_group_widget !== null);
     const widget_value =
@@ -348,10 +364,6 @@ function create_stream(): void {
         success(): void {
             $("#create_stream_name").val("");
             $("#create_stream_description").val("");
-            ui_report.success(
-                $t_html({defaultMessage: "Channel successfully created!"}),
-                $(".stream_create_info"),
-            );
             loading.destroy_indicator($("#stream_creating_indicator"));
             // The rest of the work is done via the subscribe event we will get
         },
