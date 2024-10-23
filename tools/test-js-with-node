@@ -46,6 +46,7 @@ EXEMPT_FILES = make_set(
     [
         "web/shared/src/poll_data.ts",
         "web/src/about_zulip.ts",
+        "web/src/add_group_members_pill.ts",
         "web/src/add_stream_options_popover.ts",
         "web/src/add_subscribers_pill.ts",
         "web/src/admin.js",
@@ -198,7 +199,7 @@ EXEMPT_FILES = make_set(
         "web/src/saved_snippets_ui.ts",
         "web/src/scheduled_messages.ts",
         "web/src/scheduled_messages_feed_ui.ts",
-        "web/src/scheduled_messages_overlay_ui.js",
+        "web/src/scheduled_messages_overlay_ui.ts",
         "web/src/scheduled_messages_ui.ts",
         "web/src/scroll_bar.ts",
         "web/src/scroll_util.ts",
