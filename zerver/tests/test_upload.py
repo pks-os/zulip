@@ -26,7 +26,12 @@ from zerver.actions.realm_logo import do_change_logo_source
 from zerver.actions.realm_settings import do_change_realm_plan_type, do_set_realm_property
 from zerver.actions.user_settings import do_delete_avatar_image
 from zerver.lib.attachments import validate_attachment_request
-from zerver.lib.avatar import avatar_url, get_avatar_field
+from zerver.lib.avatar import (
+    DEFAULT_AVATAR_FILE,
+    avatar_url,
+    get_avatar_field,
+    get_static_avatar_url,
+)
 from zerver.lib.cache import cache_delete, cache_get, get_realm_used_upload_space_cache_key
 from zerver.lib.create_user import copy_default_settings
 from zerver.lib.initial_password import initial_password
@@ -1531,6 +1536,39 @@ class AvatarTest(UploadSerializeMixin, ZulipTestCase):
         ):
             result = self.client_post("/json/users/me/avatar", {"file": fp})
         self.assert_json_error(result, "Uploaded file is larger than the allowed limit of 0 MiB")
+
+    def test_system_bot_avatars_url(self) -> None:
+        self.login("hamlet")
+        system_bot_emails = [
+            settings.NOTIFICATION_BOT,
+            settings.WELCOME_BOT,
+            settings.EMAIL_GATEWAY_BOT,
+        ]
+        internal_realm = get_realm(settings.SYSTEM_BOT_REALM)
+        default_avatar = DEFAULT_AVATAR_FILE
+
+        for email in system_bot_emails:
+            system_bot = get_system_bot(email, internal_realm.id)
+            response = self.client_get(f"/avatar/{email}")
+            redirect_url = response["Location"]
+            self.assertEqual(redirect_url, str(avatar_url(system_bot)))
+
+            response = self.client_get(f"/avatar/{email}/medium")
+            redirect_url = response["Location"]
+            self.assertEqual(redirect_url, str(avatar_url(system_bot, medium=True)))
+
+        with (
+            self.settings(STATIC_ROOT="static/"),
+            patch("zerver.lib.avatar.staticfiles_storage.exists") as mock_exists,
+        ):
+            mock_exists.return_value = False
+            static_avatar_url = get_static_avatar_url("false-bot@zulip.com", False)
+        self.assertIn(default_avatar, static_avatar_url)
+
+        with self.settings(DEBUG=True), self.assertRaises(AssertionError) as e:
+            get_static_avatar_url("false-bot@zulip.com", False)
+        expected_error_message = "Unknown avatar file for: false-bot@zulip.com"
+        self.assertEqual(str(e.exception), expected_error_message)
 
 
 class RealmIconTest(UploadSerializeMixin, ZulipTestCase):
