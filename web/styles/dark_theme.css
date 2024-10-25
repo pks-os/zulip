@@ -48,13 +48,6 @@
         box-shadow: inset 0 1px 0 hsl(0deg 0% 0% / 20%);
     }
 
-    #user_enter_sends_label,
-    #realm_enter_sends_label {
-        & kbd {
-            color: var(--color-kbd-text);
-        }
-    }
-
     #message-formatting,
     #keyboard-shortcuts {
         & kbd {
@@ -391,10 +384,6 @@
 
     .settings-profile-user-field {
         border-color: hsl(3deg 73% 74%);
-    }
-
-    #compose-direct-recipient .pill-container {
-        background-color: hsl(0deg 0% 0% / 20%);
     }
 
     #searchbox {

@@ -346,6 +346,15 @@ ul.popover-group-menu-member-list {
     display: flex;
     align-items: center;
     padding: 0 10px;
+
+    .zulip-icon-triple-users {
+        color: var(--color-icon-purple);
+    }
+
+    .zulip-icon {
+        padding-left: 3px;
+        padding-right: 3px;
+    }
 }
 
 .popover-group-menu-member-name {
