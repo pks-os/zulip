@@ -2197,7 +2197,7 @@ class BillingSession(ABC):
 
     # event_time should roughly be timezone_now(). Not designed to handle
     # event_times in the past or future
-    @transaction.atomic
+    @transaction.atomic(savepoint=False)
     def make_end_of_cycle_updates_if_needed(
         self, plan: CustomerPlan, event_time: datetime
     ) -> tuple[CustomerPlan | None, LicenseLedger | None]:
@@ -4006,6 +4006,7 @@ class RealmBillingSession(BillingSession):
             return customer
 
     @override
+    @transaction.atomic(savepoint=False)
     def do_change_plan_type(
         self, *, tier: int | None, is_sponsored: bool = False, background_update: bool = False
     ) -> None:
@@ -4404,7 +4405,7 @@ class RemoteRealmBillingSession(BillingSession):
         return customer
 
     @override
-    @transaction.atomic
+    @transaction.atomic(savepoint=False)
     def do_change_plan_type(
         self, *, tier: int | None, is_sponsored: bool = False, background_update: bool = False
     ) -> None:  # nocoverage
@@ -4841,7 +4842,7 @@ class RemoteServerBillingSession(BillingSession):
         return customer
 
     @override
-    @transaction.atomic
+    @transaction.atomic(savepoint=False)
     def do_change_plan_type(
         self, *, tier: int | None, is_sponsored: bool = False, background_update: bool = False
     ) -> None:
@@ -5231,7 +5232,7 @@ def ensure_customer_does_not_have_active_plan(customer: Customer) -> None:
         raise UpgradeWithExistingPlanError
 
 
-@transaction.atomic
+@transaction.atomic(durable=True)
 def do_reactivate_remote_server(remote_server: RemoteZulipServer) -> None:
     """
     Utility function for reactivating deactivated registrations.
@@ -5253,7 +5254,7 @@ def do_reactivate_remote_server(remote_server: RemoteZulipServer) -> None:
     )
 
 
-@transaction.atomic
+@transaction.atomic(durable=True)
 def do_deactivate_remote_server(
     remote_server: RemoteZulipServer, billing_session: RemoteServerBillingSession
 ) -> None:
