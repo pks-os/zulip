@@ -501,9 +501,11 @@ test("insert_one_user_into_empty_list", ({override, mock_template}) => {
             user_id: 1,
             is_current_user: false,
             num_unread: 0,
+            profile_picture: "/avatar/1",
             user_circle_class: "user_circle_green",
             status_emoji_info: undefined,
             status_text: undefined,
+            has_status_text: false,
             user_list_style: {
                 COMPACT: false,
                 WITH_STATUS: true,
