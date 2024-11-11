@@ -5,7 +5,6 @@ const path = require("node:path");
 
 require("css.escape");
 require("handlebars/runtime");
-const Sentry = require("@sentry/browser");
 const {JSDOM} = require("jsdom");
 const _ = require("lodash");
 
@@ -33,7 +32,7 @@ Object.defineProperty(global, "navigator", {
 });
 
 require("@babel/register")({
-    extensions: [".es6", ".es", ".jsx", ".js", ".mjs", ".ts"],
+    extensions: [".cjs", ".cts", ".js", ".mjs", ".mts", ".ts"],
     only: [
         new RegExp("^" + _.escapeRegExp(path.resolve(__dirname, "../../shared/src") + path.sep)),
         new RegExp("^" + _.escapeRegExp(path.resolve(__dirname, "../../src") + path.sep)),
@@ -44,9 +43,6 @@ require("@babel/register")({
     ],
     root: path.resolve(__dirname, "../.."),
 });
-
-// Ensure that startTransaction and friends are available at runtime
-Sentry.addTracingExtensions();
 
 // Create a helper function to avoid sneaky delays in tests.
 function immediate(f) {

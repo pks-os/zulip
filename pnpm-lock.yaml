@@ -377,9 +377,6 @@ importers:
       cldr-annotations-modern:
         specifier: ^45.0.0
         version: 45.0.0
-      commander:
-        specifier: ^12.0.0
-        version: 12.1.0
       confusing-browser-globals:
         specifier: ^1.0.11
         version: 1.0.11
@@ -422,12 +419,6 @@ importers:
       jsdom:
         specifier: ^25.0.0
         version: 25.0.1
-      minimist:
-        specifier: ^1.2.6
-        version: 1.2.8
-      mkdirp:
-        specifier: ^3.0.1
-        version: 3.0.1
       mockdate:
         specifier: ^3.0.2
         version: 3.0.5
@@ -476,9 +467,6 @@ importers:
       yaml:
         specifier: ^2.0.0-8
         version: 2.6.0
-      yargs:
-        specifier: ^17.1.1
-        version: 17.7.2
       zulip-js:
         specifier: ^2.0.8
         version: 2.1.0(encoding@0.1.13)
@@ -3467,10 +3455,6 @@ packages:
     resolution: {integrity: sha512-MwVNWlYjDTtOjX5PiD7o5pK0UrFU/OYgcJfjjK4RaHZETNtjJqrZa9Y9ds88+A+f+d5lv+561eZ+yCKoS3gbAA==}
     engines: {node: '>=18'}
 
-  commander@12.1.0:
-    resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
-    engines: {node: '>=18'}
-
   commander@2.20.3:
     resolution: {integrity: sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==}
 
@@ -6244,11 +6228,6 @@ packages:
 
   mkdirp@1.0.4:
     resolution: {integrity: sha512-vVqVZQyf3WLx2Shd0qJ9xuvqgAyKPLAiqITEtqW0oIUjzo3PePDd6fW9iFz30ef7Ysp/oiWqbhszeGWW2T6Gzw==}
-    engines: {node: '>=10'}
-    hasBin: true
-
-  mkdirp@3.0.1:
-    resolution: {integrity: sha512-+NsyUUAZDmo6YVHzL/stxSu3t9YS1iljliy3BSDrXJ/dkn1KYdmtZODGGjLcc9XLgVVpH4KshHB8XmZgMhaBXg==}
     engines: {node: '>=10'}
     hasBin: true
 
@@ -12612,8 +12591,6 @@ snapshots:
 
   commander@12.0.0: {}
 
-  commander@12.1.0: {}
-
   commander@2.20.3: {}
 
   commander@6.2.1: {}
@@ -16133,8 +16110,6 @@ snapshots:
   mitt@3.0.1: {}
 
   mkdirp@1.0.4: {}
-
-  mkdirp@3.0.1: {}
 
   mockdate@3.0.5: {}
 
