@@ -1949,11 +1949,11 @@ export class MessageListView {
     }
 
     render_trailing_bookend(
+        stream_id: number,
         stream_name: string | undefined,
         subscribed: boolean,
         deactivated: boolean,
         just_unsubscribed: boolean,
-        can_toggle_subscription: boolean,
         is_spectator: boolean,
         invite_only: boolean,
         is_web_public: boolean,
@@ -1962,8 +1962,8 @@ export class MessageListView {
         // partial in message_group.hbs, which do not set is_trailing_bookend.
         const $rendered_trailing_bookend = $(
             render_bookend({
+                stream_id,
                 stream_name,
-                can_toggle_subscription,
                 subscribed,
                 deactivated,
                 just_unsubscribed,

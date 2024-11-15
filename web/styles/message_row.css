@@ -743,13 +743,13 @@ of the base style defined for a read-only textarea in dark mode. */
 }
 
 .edit-controls {
-    .btn-wrapper {
+    .button-wrapper {
         cursor: not-allowed;
     }
+}
 
-    .disable-btn {
-        pointer-events: none;
-    }
+.message-edit-button-disabled {
+    pointer-events: none;
 }
 
 /* Reduce some of the heavy padding from Bootstrap. */
