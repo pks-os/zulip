@@ -154,36 +154,15 @@ function show_membership_settings(group) {
 }
 
 function show_general_settings(group) {
-    const $edit_container = get_edit_container(group);
-    settings_components.create_group_setting_widget({
-        $pill_container: $edit_container.find(".can-add-members-group-container .pill-container"),
-        setting_name: "can_add_members_group",
-        group,
-    });
+    const permission_settings = Object.keys(realm.server_supported_permission_settings.group);
+    for (const setting_name of permission_settings) {
+        settings_components.create_group_setting_widget({
+            $pill_container: $(`#id_${CSS.escape(setting_name)}`),
+            setting_name,
+            group,
+        });
+    }
 
-    settings_components.create_group_setting_widget({
-        $pill_container: $edit_container.find(".can-manage-group-container .pill-container"),
-        setting_name: "can_manage_group",
-        group,
-    });
-
-    settings_components.create_group_setting_widget({
-        $pill_container: $edit_container.find(".can-join-group-container .pill-container"),
-        setting_name: "can_join_group",
-        group,
-    });
-
-    settings_components.create_group_setting_widget({
-        $pill_container: $edit_container.find(".can-leave-group-container .pill-container"),
-        setting_name: "can_leave_group",
-        group,
-    });
-
-    settings_components.create_group_setting_widget({
-        $pill_container: $edit_container.find(".can-mention-group-container .pill-container"),
-        setting_name: "can_mention_group",
-        group,
-    });
     update_general_panel_ui(group);
 }
 

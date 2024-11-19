@@ -62,6 +62,7 @@ from zerver.lib.streams import (
     check_stream_name_available,
     do_get_streams,
     filter_stream_authorization,
+    get_group_setting_value_dict_for_streams,
     get_stream_permission_policy_name,
     list_to_streams,
     stream_to_dict,
@@ -382,8 +383,8 @@ def update_stream_backend(
     if stream_post_policy is not None:
         do_change_stream_post_policy(stream, stream_post_policy, acting_user=user_profile)
 
+    request_settings_dict = locals()
     for setting_name, permission_configuration in Stream.stream_permission_group_settings.items():
-        request_settings_dict = locals()
         assert setting_name in request_settings_dict
         if request_settings_dict[setting_name] is None:
             continue
@@ -589,6 +590,7 @@ def add_subscriptions_backend(
     if principals is None:
         principals = []
 
+    setting_groups_dict = {}
     if can_remove_subscribers_group is not None:
         setting_value = parse_group_setting_value(
             can_remove_subscribers_group, "can_remove_subscribers_group"
@@ -602,6 +604,7 @@ def add_subscriptions_backend(
             setting_name="can_remove_subscribers_group",
             permission_configuration=permission_configuration,
         )
+        setting_groups_dict[can_remove_subscribers_group_value.id] = setting_value
     else:
         can_remove_subscribers_group_default_name = Stream.stream_permission_group_settings[
             "can_remove_subscribers_group"
@@ -610,6 +613,9 @@ def add_subscriptions_backend(
             name=can_remove_subscribers_group_default_name,
             realm=user_profile.realm,
             is_system_group=True,
+        )
+        setting_groups_dict[can_remove_subscribers_group_value.id] = (
+            can_remove_subscribers_group_value.id
         )
 
     for stream_obj in streams_raw:
@@ -654,7 +660,11 @@ def add_subscriptions_backend(
     # can_create_streams policy and check_stream_name policy is inside
     # list_to_streams.
     existing_streams, created_streams = list_to_streams(
-        stream_dicts, user_profile, autocreate=True, is_default_stream=is_default_stream
+        stream_dicts,
+        user_profile,
+        autocreate=True,
+        is_default_stream=is_default_stream,
+        setting_groups_dict=setting_groups_dict,
     )
     authorized_streams, unauthorized_streams = filter_stream_authorization(
         user_profile, existing_streams
@@ -895,7 +905,11 @@ def get_stream_backend(
     (stream, sub) = access_stream_by_id(user_profile, stream_id, allow_realm_admin=True)
 
     recent_traffic = get_streams_traffic({stream.id}, user_profile.realm)
-    return json_success(request, data={"stream": stream_to_dict(stream, recent_traffic)})
+    setting_groups_dict = get_group_setting_value_dict_for_streams([stream])
+
+    return json_success(
+        request, data={"stream": stream_to_dict(stream, recent_traffic, setting_groups_dict)}
+    )
 
 
 @typed_endpoint

@@ -39,8 +39,8 @@ from zerver.lib.stream_traffic import get_streams_traffic
 from zerver.lib.streams import (
     can_access_stream_user_ids,
     check_basic_stream_access,
+    get_group_setting_value_dict_for_streams,
     get_occupied_streams,
-    get_setting_values_for_group_settings,
     get_stream_permission_policy_name,
     render_stream_description,
     send_stream_creation_event,
@@ -234,7 +234,10 @@ def do_unarchive_stream(stream: Stream, new_name: str, *, acting_user: UserProfi
 
     notify_users = admin_users_and_bots | subscribed_users
 
-    send_stream_creation_event(realm, stream, [user.id for user in notify_users], recent_traffic)
+    setting_groups_dict = get_group_setting_value_dict_for_streams([stream])
+    send_stream_creation_event(
+        realm, stream, [user.id for user in notify_users], recent_traffic, setting_groups_dict
+    )
 
     sender = get_system_bot(settings.NOTIFICATION_BOT, stream.realm_id)
     with override_language(stream.realm.default_language):
@@ -354,13 +357,8 @@ def send_subscription_add_events(
                 subscribers = list(subscriber_dict[stream.id])
             stream_subscribers_dict[stream.id] = subscribers
 
-    setting_group_ids = set()
-    for sub_info in sub_info_list:
-        stream = sub_info.stream
-        for setting_name in Stream.stream_permission_group_settings:
-            setting_group_ids.add(getattr(stream, setting_name + "_id"))
-
-    setting_groups_dict = get_setting_values_for_group_settings(list(setting_group_ids))
+    streams = [sub_info.stream for sub_info in sub_info_list]
+    setting_groups_dict = get_group_setting_value_dict_for_streams(streams)
 
     for user_id, sub_infos in info_by_user.items():
         sub_dicts: list[APISubscriptionDict] = []
@@ -460,13 +458,8 @@ def send_stream_creation_events_for_previously_inaccessible_streams(
     stream_ids = set(altered_user_dict.keys())
     recent_traffic = get_streams_traffic(stream_ids, realm)
 
-    setting_group_ids = set()
-    for stream_id in stream_ids:
-        stream = stream_dict[stream_id]
-        for setting_name in Stream.stream_permission_group_settings:
-            setting_group_ids.add(getattr(stream, setting_name + "_id"))
-
-    setting_groups_dict = get_setting_values_for_group_settings(list(setting_group_ids))
+    streams = [stream_dict[stream_id] for stream_id in stream_ids]
+    setting_groups_dict: dict[int, int | AnonymousSettingGroupDict] | None = None
 
     for stream_id, stream_users_ids in altered_user_dict.items():
         stream = stream_dict[stream_id]
@@ -488,6 +481,9 @@ def send_stream_creation_events_for_previously_inaccessible_streams(
             notify_user_ids = list(stream_users_ids & altered_guests)
 
         if notify_user_ids:
+            if setting_groups_dict is None:
+                setting_groups_dict = get_group_setting_value_dict_for_streams(streams)
+
             send_stream_creation_event(
                 realm, stream, notify_user_ids, recent_traffic, setting_groups_dict
             )
@@ -1242,7 +1238,10 @@ def do_change_stream_permission(
         notify_stream_creation_ids = non_guest_user_ids - old_can_access_stream_user_ids
 
         recent_traffic = get_streams_traffic({stream.id}, realm)
-        send_stream_creation_event(realm, stream, list(notify_stream_creation_ids), recent_traffic)
+        setting_groups_dict = get_group_setting_value_dict_for_streams([stream])
+        send_stream_creation_event(
+            realm, stream, list(notify_stream_creation_ids), recent_traffic, setting_groups_dict
+        )
 
         # Add subscribers info to the stream object. We need to send peer_add
         # events to users who were previously subscribed to the streams as
