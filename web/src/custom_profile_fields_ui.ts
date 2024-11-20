@@ -154,6 +154,16 @@ export function initialize_custom_user_type_fields(
         }
     }
 
+    // Enable the label associated to this field to focus on the input when clicked.
+    $(element_id)
+        .find(".custom_user_field label.settings-field-label")
+        .on("click", function () {
+            const $input_element = $(this)
+                .closest(".custom_user_field")
+                .find(".person_picker.pill-container .input");
+            $input_element.trigger("focus");
+        });
+
     return user_pills;
 }
 
@@ -169,6 +179,13 @@ export function initialize_custom_date_type_fields(element_id: string): void {
         allowInput: true,
         static: true,
     });
+
+    // Enable the label associated to this field to open the datepicker when clicked.
+    $(element_id)
+        .find(".custom_user_field label.settings-field-label")
+        .on("click", function () {
+            $(this).closest(".custom_user_field").find("input.datepicker").trigger("click");
+        });
 
     $(element_id)
         .find<HTMLInputElement>(".custom_user_field input.datepicker")

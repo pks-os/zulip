@@ -17,6 +17,7 @@ from zerver.lib.stream_subscription import (
 )
 from zerver.lib.stream_traffic import get_average_weekly_stream_traffic, get_streams_traffic
 from zerver.lib.streams import (
+    get_group_setting_value_dict_for_streams,
     get_setting_values_for_group_settings,
     get_web_public_streams_queryset,
     subscribed_to_stream,
@@ -31,7 +32,6 @@ from zerver.lib.types import (
     SubscriptionInfo,
     SubscriptionStreamDict,
 )
-from zerver.lib.user_groups import get_group_setting_value_for_api
 from zerver.models import Realm, Stream, Subscription, UserProfile
 from zerver.models.streams import get_all_streams
 
@@ -46,12 +46,13 @@ def get_web_public_subs(realm: Realm) -> SubscriptionInfo:
         return color
 
     subscribed = []
-    for stream in get_web_public_streams_queryset(realm):
+    streams = get_web_public_streams_queryset(realm)
+    setting_groups_dict = get_group_setting_value_dict_for_streams(list(streams))
+
+    for stream in streams:
         # Add Stream fields.
         is_archived = stream.deactivated
-        can_remove_subscribers_group = get_group_setting_value_for_api(
-            stream.can_remove_subscribers_group
-        )
+        can_remove_subscribers_group = setting_groups_dict[stream.can_remove_subscribers_group_id]
         creator_id = stream.creator_id
         date_created = datetime_to_timestamp(stream.date_created)
         description = stream.description
@@ -237,9 +238,9 @@ def build_stream_dict_for_sub(
 def build_stream_dict_for_never_sub(
     raw_stream_dict: RawStreamDict,
     recent_traffic: dict[int, int] | None,
+    setting_groups_dict: dict[int, int | AnonymousSettingGroupDict],
 ) -> NeverSubscribedStreamDict:
     is_archived = raw_stream_dict["deactivated"]
-    can_remove_subscribers_group_id = raw_stream_dict["can_remove_subscribers_group_id"]
     creator_id = raw_stream_dict["creator_id"]
     date_created = datetime_to_timestamp(raw_stream_dict["date_created"])
     description = raw_stream_dict["description"]
@@ -260,13 +261,17 @@ def build_stream_dict_for_never_sub(
     else:
         stream_weekly_traffic = None
 
+    can_remove_subscribers_group_value = setting_groups_dict[
+        raw_stream_dict["can_remove_subscribers_group_id"]
+    ]
+
     # Backwards-compatibility addition of removed field.
     is_announcement_only = raw_stream_dict["stream_post_policy"] == Stream.STREAM_POST_POLICY_ADMINS
 
     # Our caller may add a subscribers field.
     return NeverSubscribedStreamDict(
         is_archived=is_archived,
-        can_remove_subscribers_group=can_remove_subscribers_group_id,
+        can_remove_subscribers_group=can_remove_subscribers_group_value,
         creator_id=creator_id,
         date_created=date_created,
         description=description,
@@ -566,7 +571,9 @@ def gather_subscriptions_helper(
         is_public = not raw_stream_dict["invite_only"]
         if is_public or user_profile.is_realm_admin:
             slim_stream_dict = build_stream_dict_for_never_sub(
-                raw_stream_dict=raw_stream_dict, recent_traffic=recent_traffic
+                raw_stream_dict=raw_stream_dict,
+                recent_traffic=recent_traffic,
+                setting_groups_dict=setting_groups_dict,
             )
 
             never_subscribed.append(slim_stream_dict)

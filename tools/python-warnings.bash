@@ -10,9 +10,6 @@ PYTHONWARNINGS+=',default:check_home argument is deprecated and ignored.:Depreca
 # https://github.com/disqus/django-bitfield/pull/135
 PYTHONWARNINGS+=',default:Attribute s is deprecated and will be removed in Python 3.14; use value instead:DeprecationWarning:__main__'
 
-# https://github.com/jaysonsantos/python-binary-memcached/pull/257
-PYTHONWARNINGS+=',ignore:urllib.parse.splitport() is deprecated as of 3.8:DeprecationWarning:bmemcached.protocol'
-
 # https://github.com/boto/botocore/pull/3239
 PYTHONWARNINGS+=',ignore:datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version.:DeprecationWarning:botocore.auth'
 
@@ -21,6 +18,10 @@ PYTHONWARNINGS+=',ignore:The '\''strip_cdata'\'' option of HTMLParser() has neve
 
 # https://github.com/fabfuel/circuitbreaker/pull/63
 PYTHONWARNINGS+=',ignore:datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version.:DeprecationWarning:circuitbreaker'
+
+# https://github.com/mahmoud/glom/pull/258
+PYTHONWARNINGS+=',ignore:invalid escape sequence '\'\\' '\'':DeprecationWarning'
+PYTHONWARNINGS+=',ignore:invalid escape sequence '\'\\' '\'':SyntaxWarning'
 
 # This gets triggered due to our do_patch_activate_script
 PYTHONWARNINGS+=',default:Attempting to work in a virtualenv.:UserWarning:IPython.core.interactiveshell'

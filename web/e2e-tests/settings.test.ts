@@ -30,6 +30,8 @@ async function open_settings(page: Page): Promise<void> {
         page_url.includes("/#settings/"),
         `Page url: ${page_url} does not contain /#settings/`,
     );
+    // Wait for settings overlay to open.
+    await page.waitForSelector("#settings_overlay_container", {visible: true});
 }
 
 async function close_settings_and_date_picker(page: Page): Promise<void> {
@@ -43,6 +45,7 @@ async function close_settings_and_date_picker(page: Page): Promise<void> {
 }
 
 async function test_change_full_name(page: Page): Promise<void> {
+    await page.waitForSelector("#full_name", {visible: true});
     await page.click("#full_name");
 
     const full_name_input_selector = 'input[name="full_name"]';

@@ -56,7 +56,6 @@ module = [
     "bitfield.*",
     "bmemcached.*",
     "circuitbreaker.*",
-    "defusedxml.*", # https://github.com/tiran/defusedxml/issues/46
     "digitalocean.*",
     "django_auth_ldap.*",
     "django_bmemcached.*",
@@ -77,7 +76,6 @@ module = [
     "re2.*",
     "requests_oauthlib.*", # https://github.com/requests/requests-oauthlib/issues/428
     "scim2_filter_parser.attr_paths",
-    "scrapy.*", # https://github.com/scrapy/scrapy/issues/4041
     "social_core.*",
     "social_django.*",
     "talon_core.*",
