@@ -52,7 +52,6 @@ from zerver.models.realms import (
     BotCreationPolicyEnum,
     CommonPolicyEnum,
     DigestWeekdayEnum,
-    InviteToRealmPolicyEnum,
     OrgTypeEnum,
     WildcardMentionPolicyEnum,
 )
@@ -99,7 +98,6 @@ def update_realm(
     emails_restricted_to_domains: Json[bool] | None = None,
     disallow_disposable_email_addresses: Json[bool] | None = None,
     invite_required: Json[bool] | None = None,
-    invite_to_realm_policy: Json[InviteToRealmPolicyEnum] | None = None,
     create_multiuse_invite_group: Json[GroupSettingChangeRequest] | None = None,
     require_unique_names: Json[bool] | None = None,
     name_changes_disabled: Json[bool] | None = None,
@@ -139,6 +137,7 @@ def update_realm(
     can_create_public_channel_group: Json[GroupSettingChangeRequest] | None = None,
     can_create_private_channel_group: Json[GroupSettingChangeRequest] | None = None,
     can_create_web_public_channel_group: Json[GroupSettingChangeRequest] | None = None,
+    can_invite_users_group: Json[GroupSettingChangeRequest] | None = None,
     can_manage_all_groups: Json[GroupSettingChangeRequest] | None = None,
     can_move_messages_between_channels_group: Json[GroupSettingChangeRequest] | None = None,
     can_move_messages_between_topics_group: Json[GroupSettingChangeRequest] | None = None,
@@ -219,10 +218,10 @@ def update_realm(
         )
 
     if (
-        invite_to_realm_policy is not None
-        or invite_required is not None
+        invite_required is not None
         or create_multiuse_invite_group is not None
         or can_create_groups is not None
+        or can_invite_users_group is not None
         or can_manage_all_groups is not None
     ) and not user_profile.is_realm_owner:
         raise OrganizationOwnerRequiredError
