@@ -61,7 +61,7 @@ def create_integration_bot(integration: Integration, bot_name: str | None = None
     owner = get_user_by_delivery_email("iago@zulip.com", realm)
     bot_email = f"{integration.name}-bot@example.com"
     if bot_name is None:
-        bot_name = f"{integration.name.capitalize()} Bot"
+        bot_name = f"{integration.display_name} Bot"
     try:
         bot = UserProfile.objects.get(email=bot_email)
     except UserProfile.DoesNotExist:
@@ -172,7 +172,8 @@ def send_bot_payload_message(
     data, json_fixture, fixture_name = get_fixture_info(fixture_path)
 
     headers = get_requests_headers(integration.name, fixture_name)
-    headers.update(config.custom_headers)
+    if config.custom_headers:
+        headers.update(config.custom_headers)
     if config.use_basic_auth:
         credentials = base64.b64encode(f"{bot.email}:{bot.api_key}".encode()).decode()
         auth = f"basic {credentials}"

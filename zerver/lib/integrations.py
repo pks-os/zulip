@@ -139,6 +139,9 @@ class Integration:
 
         return None
 
+    def get_translated_categories(self) -> list[str]:
+        return [str(category) for category in self.categories]
+
 
 class BotIntegration(Integration):
     DEFAULT_LOGO_STATIC_PATH_PNG = "generated/bots/{name}/logo.png"
@@ -742,10 +745,7 @@ DOC_SCREENSHOT_CONFIG: dict[str, list[BaseScreenshotConfig]] = {
     ],
     "buildbot": [ScreenshotConfig("started.json")],
     "canarytoken": [ScreenshotConfig("canarytoken_real.json")],
-    "circleci": [
-        ScreenshotConfig("bitbucket_job_completed.json", image_name="001.png"),
-        ScreenshotConfig("github_job_completed.json", image_name="002.png"),
-    ],
+    "circleci": [ScreenshotConfig("github_job_completed.json")],
     "clubhouse": [ScreenshotConfig("story_create.json")],
     "codeship": [ScreenshotConfig("error_build.json")],
     "crashlytics": [ScreenshotConfig("issue_message.json")],
@@ -844,9 +844,9 @@ DOC_SCREENSHOT_CONFIG: dict[str, list[BaseScreenshotConfig]] = {
             "007.png",
             use_basic_auth=True,
             extra_params={
-                "ticket_title": "Test ticket",
-                "ticket_id": "4",
-                "message": "Test message",
+                "ticket_title": "Hardware Ecosystem Compatibility Inquiry",
+                "ticket_id": "4837",
+                "message": "Hi, I am planning to purchase the X5000 smartphone and want to ensure compatibility with my existing devices - WDX10 wireless earbuds and Z600 smartwatch. Are there any known issues?",
             },
         )
     ],
