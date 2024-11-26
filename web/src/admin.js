@@ -10,7 +10,7 @@ import {$t, get_language_name, language_list} from "./i18n.ts";
 import {page_params} from "./page_params.ts";
 import * as people from "./people.ts";
 import {realm_user_settings_defaults} from "./realm_user_settings_defaults.ts";
-import * as settings from "./settings.js";
+import * as settings from "./settings.ts";
 import * as settings_bots from "./settings_bots.ts";
 import * as settings_components from "./settings_components.ts";
 import * as settings_config from "./settings_config.ts";
@@ -19,7 +19,7 @@ import * as settings_invites from "./settings_invites.ts";
 import * as settings_org from "./settings_org.ts";
 import * as settings_panel_menu from "./settings_panel_menu.ts";
 import * as settings_sections from "./settings_sections.ts";
-import * as settings_toggle from "./settings_toggle.js";
+import * as settings_toggle from "./settings_toggle.ts";
 import * as settings_users from "./settings_users.ts";
 import {current_user, realm} from "./state_data.ts";
 
