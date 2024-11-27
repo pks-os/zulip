@@ -17,7 +17,6 @@ from django.shortcuts import render
 from django.urls import reverse
 from django.utils.timesince import timesince
 from django.utils.timezone import now as timezone_now
-from django.utils.translation import gettext as _
 from pydantic import AfterValidator, Json, NonNegativeInt
 
 from confirmation.models import Confirmation, confirmation_url
@@ -41,7 +40,6 @@ from zerver.actions.realm_settings import (
 from zerver.actions.users import do_delete_user_preserving_messages
 from zerver.decorator import require_server_admin, zulip_login_required
 from zerver.forms import check_subdomain_available
-from zerver.lib.exceptions import JsonableError
 from zerver.lib.rate_limiter import rate_limit_request_by_ip
 from zerver.lib.realm_icon import realm_icon_url
 from zerver.lib.send_email import FromAddress, send_email
@@ -421,6 +419,11 @@ def support(
     query: Annotated[str | None, ApiParamConfig("q")] = None,
     org_type: Json[NonNegativeInt] | None = None,
     max_invites: Json[NonNegativeInt] | None = None,
+    plan_end_date: Annotated[str, AfterValidator(lambda x: check_date("plan_end_date", x))]
+    | None = None,
+    fixed_price: Json[NonNegativeInt] | None = None,
+    sent_invoice_id: str | None = None,
+    delete_fixed_price_next_plan: Json[bool] = False,
 ) -> HttpResponse:
     from corporate.lib.stripe import (
         RealmBillingSession,
@@ -443,12 +446,6 @@ def support(
         # realm_id and a field to change.
         keys = set(request.POST.keys())
         keys.discard("csrfmiddlewaretoken")
-        REQUIRED_KEYS = 2
-        if monthly_discounted_price is not None or annual_discounted_price is not None:
-            REQUIRED_KEYS = 3
-
-        if len(keys) != REQUIRED_KEYS:
-            raise JsonableError(_("Invalid parameters"))
 
         assert realm_id is not None
         realm = Realm.objects.get(id=realm_id)
@@ -490,6 +487,24 @@ def support(
             )
             if modify_plan == "upgrade_plan_tier":
                 support_view_request["new_plan_tier"] = CustomerPlan.TIER_CLOUD_PLUS
+        elif plan_end_date is not None:
+            support_view_request = SupportViewRequest(
+                support_type=SupportType.update_plan_end_date,
+                plan_end_date=plan_end_date,
+            )
+        elif fixed_price is not None:
+            # Treat empty string for send_invoice_id as None.
+            if sent_invoice_id is not None and sent_invoice_id.strip() == "":
+                sent_invoice_id = None
+            support_view_request = SupportViewRequest(
+                support_type=SupportType.configure_fixed_price_plan,
+                fixed_price=fixed_price,
+                sent_invoice_id=sent_invoice_id,
+            )
+        elif delete_fixed_price_next_plan:
+            support_view_request = SupportViewRequest(
+                support_type=SupportType.delete_fixed_price_next_plan,
+            )
         elif plan_type is not None:
             current_plan_type = realm.plan_type
             do_change_realm_plan_type(realm, plan_type, acting_user=acting_user)
@@ -671,6 +686,7 @@ def support(
     context["ORGANIZATION_TYPES"] = sorted(
         Realm.ORG_TYPES.values(), key=lambda d: d["display_order"]
     )
+    context["remote_support_view"] = False
 
     return render(request, "corporate/support/support.html", context=context)
 
@@ -957,6 +973,7 @@ def remote_servers_support(
     )
     context["get_remote_realm_billing_user_emails"] = get_remote_realm_billing_user_emails_as_string
     context["SPONSORED_PLAN_TYPE"] = RemoteZulipServer.PLAN_TYPE_COMMUNITY
+    context["remote_support_view"] = True
 
     return render(
         request,
