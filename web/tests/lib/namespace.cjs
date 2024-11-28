@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const Module = require("node:module");
 const path = require("node:path");
 
-const callsites = require("callsites");
+const {default: callsites} = require("callsites");
 
 const $ = require("./zjquery.cjs");
 
@@ -209,7 +209,7 @@ exports.zrequire = function (short_fn) {
         short_fn,
         "templates",
         `
-            There is no need to zrequire templates.js.
+            There is no need to zrequire templates.ts.
 
             The test runner automatically registers the
             Handlebars extensions.

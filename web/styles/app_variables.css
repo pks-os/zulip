@@ -293,7 +293,8 @@
         (
                 var(--line-height-sidebar-row-prominent) -
                     var(--line-height-sidebar-topic-inner)
-            ) / 2
+            ) /
+            2
     );
 
     /* Right sidebar */
@@ -342,8 +343,10 @@
                             var(--base-maximum-block-height-em),
                             var(--length-line-fitted-block)
                         )
-                    ) - var(--length-line-oversize-block)
-            ) / 2
+                    ) -
+                    var(--length-line-oversize-block)
+            ) /
+            2
     );
 
     /* Legacy values */
@@ -1216,9 +1219,9 @@
     --color-background-tab-picker-tab-option-hover: hsl(0deg 0% 100% / 5%);
     --color-background-tab-picker-tab-option-active: hsl(0deg 0% 100% / 3%);
     --color-background-alert-word: hsl(22deg 70% 35%);
-    --color-buddy-list-highlighted-user: var(
-        --color-background-hover-narrow-filter
-    );
+    /* TODO: We can probably use this value for --color-background-hover-narrow-filter, but
+       that requires some followup checking.  */
+    --color-buddy-list-highlighted-user: hsl(0deg 0% 18%);
     --color-buddy-list-avatar-loading: hsl(0deg 0% 100% / 10%);
     --color-border-sidebar: hsl(0deg 0% 0% / 20%);
     --color-text-sidebar-base: hsl(0deg 0% 100%);

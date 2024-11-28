@@ -18,7 +18,6 @@ import * as pygments_data from "./pygments_data.ts";
 import * as recent_senders from "./recent_senders.ts";
 import {realm} from "./state_data.ts";
 import * as stream_data from "./stream_data.ts";
-import * as stream_list_sort from "./stream_list_sort.ts";
 import type {StreamPill, StreamPillData} from "./stream_pill.ts";
 import type {StreamSubscription} from "./sub_store.ts";
 import type {UserGroupPill, UserGroupPillData} from "./user_group_pill.ts";
@@ -546,6 +545,10 @@ export let sort_recipients = <UserType extends UserOrMentionPillData | UserPillD
 
     function add_group_recipients(items: UserGroupPillData[]): void {
         for (const item of items) {
+            const is_empty_group = user_groups.is_empty_group(item.id);
+            if (is_empty_group) {
+                continue;
+            }
             recipients.push(item);
         }
     }
@@ -779,7 +782,7 @@ function activity_score(sub: StreamSubscription): number {
     if (sub.pin_to_top) {
         stream_score += 2;
     }
-    if (stream_list_sort.has_recent_activity(sub)) {
+    if (sub.is_recently_active) {
         stream_score += 1;
     }
     return stream_score;

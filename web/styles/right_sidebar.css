@@ -292,10 +292,9 @@ $user_status_emoji_width: 24px;
 }
 
 .user_sidebar_entry.with_avatar {
-    grid-template: "row-content" var(--line-height-sidebar-row-with-avatars) "row-content" auto / minmax(
-            0,
-            1fr
-        );
+    grid-template:
+        "row-content" var(--line-height-sidebar-row-with-avatars)
+        "row-content" auto / minmax(0, 1fr);
 
     .selectable_sidebar_block {
         margin: 4px;
@@ -554,13 +553,40 @@ $user_status_emoji_width: 24px;
     padding-left: 0;
 
     .invite-user-link {
-        grid-template-columns: var(--right-sidebar-header-icon-toggle-width) minmax(
-                0,
-                1fr
-            );
+        grid-template-columns:
+            var(--right-sidebar-header-icon-toggle-width)
+            minmax(0, 1fr);
 
         .zulip-icon-user-plus {
             justify-self: center;
+        }
+    }
+}
+
+#buddy-list-actions-menu-popover {
+    .display-style-selector + .invite-user-link-item {
+        border-top: 1px solid var(--color-border-sidebar-subheader);
+    }
+
+    /* No hover effect on the label */
+    .display-style-selector-header:hover {
+        background: inherit;
+        cursor: default;
+    }
+
+    .popover-menu-link:not(.display-style-selector-header) {
+        display: grid;
+        grid-template: "left-icon row-content" auto / 18px 1fr;
+        align-items: center;
+
+        .popover-menu-icon,
+        .user_list_style_choice {
+            grid-area: left-icon;
+            justify-self: baseline;
+        }
+
+        .popover-menu-label {
+            grid-area: row-content;
         }
     }
 }
