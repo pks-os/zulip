@@ -38,7 +38,7 @@ export const keyboard_handling_context = {
         const scheduled_messages_ids = [];
         const sorted_messages = sort_scheduled_messages(scheduled_messages.scheduled_messages_data);
         for (const message of sorted_messages) {
-            scheduled_messages_ids.push(message.scheduled_message_id);
+            scheduled_messages_ids.push(message.scheduled_message_id.toString());
         }
         return scheduled_messages_ids;
     },
@@ -139,10 +139,7 @@ export function launch(): void {
     $messages_list.append($(rendered_list));
 
     const first_element_id = keyboard_handling_context.get_items_ids()[0];
-    if (first_element_id === undefined) {
-        return;
-    }
-    messages_overlay_ui.set_initial_element(String(first_element_id), keyboard_handling_context);
+    messages_overlay_ui.set_initial_element(first_element_id, keyboard_handling_context);
 }
 
 export function rerender(): void {
