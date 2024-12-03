@@ -56,6 +56,7 @@ export function add(user_group_raw: UserGroupRaw): UserGroup {
         can_leave_group: user_group_raw.can_leave_group,
         can_manage_group: user_group_raw.can_manage_group,
         can_mention_group: user_group_raw.can_mention_group,
+        can_remove_members_group: user_group_raw.can_remove_members_group,
         deactivated: user_group_raw.deactivated,
     };
 
@@ -126,6 +127,12 @@ export function update(event: UserGroupUpdateEvent): void {
 
     if (event.data.can_leave_group !== undefined) {
         group.can_leave_group = event.data.can_leave_group;
+        user_group_name_dict.delete(group.name);
+        user_group_name_dict.set(group.name, group);
+    }
+
+    if (event.data.can_remove_members_group !== undefined) {
+        group.can_remove_members_group = event.data.can_remove_members_group;
         user_group_name_dict.delete(group.name);
         user_group_name_dict.set(group.name, group);
     }
@@ -286,9 +293,7 @@ export function is_setting_group_empty(setting_group: GroupSettingValue): boolea
 
 export function get_user_groups_of_user(user_id: number): UserGroup[] {
     const user_groups_realm = get_realm_user_groups();
-    const groups_of_user = user_groups_realm.filter((group) =>
-        is_direct_member_of(user_id, group.id),
-    );
+    const groups_of_user = user_groups_realm.filter((group) => is_user_in_group(group.id, user_id));
     return groups_of_user;
 }
 
@@ -411,6 +416,25 @@ export function is_user_in_group(
         }
     }
     return false;
+}
+
+export function get_associated_subgroups(user_group: UserGroup, user_id: number): UserGroup[] {
+    const subgroup_ids = get_recursive_subgroups(user_group)!;
+    if (subgroup_ids === undefined) {
+        return [];
+    }
+
+    const subgroups = [];
+    for (const group_id of subgroup_ids) {
+        if (is_direct_member_of(user_id, group_id)) {
+            subgroups.push(user_group_by_id_dict.get(group_id)!);
+        }
+    }
+    return subgroups;
+}
+
+export function group_list_to_comma_seperated_name(user_groups: UserGroup[]): string {
+    return user_groups.map((user_group) => user_group.name).join(", ");
 }
 
 export function is_user_in_setting_group(

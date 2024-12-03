@@ -23,10 +23,7 @@ export default [
             "docs/_build",
             "static/generated",
             "static/webpack-bundles",
-            "var/*",
-            "!var/puppeteer",
-            "var/puppeteer/*",
-            "!var/puppeteer/test_credentials.d.ts",
+            "var",
             "web/generated",
             "web/third",
             "zulip-current-venv",
@@ -196,7 +193,7 @@ export default [
                 JQuery: "readonly",
             },
             parserOptions: {
-                project: true,
+                projectService: true,
                 tsConfigRootDir: import.meta.dirname,
             },
         },
@@ -274,7 +271,11 @@ export default [
     {
         files: ["web/shared/**", "web/src/**"],
         settings: {
-            "import/resolver": "webpack",
+            "import/resolver": {
+                webpack: {
+                    config: {},
+                },
+            },
         },
         rules: {
             "no-console": "error",

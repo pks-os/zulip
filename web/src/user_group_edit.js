@@ -1,6 +1,7 @@
 import $ from "jquery";
 
 import render_confirm_delete_user from "../templates/confirm_dialog/confirm_delete_user.hbs";
+import render_confirm_join_group_direct_member from "../templates/confirm_dialog/confirm_join_group_direct_member.hbs";
 import render_group_info_banner from "../templates/modal_banner/user_group_info_banner.hbs";
 import render_browse_user_groups_list_item from "../templates/user_group_settings/browse_user_groups_list_item.hbs";
 import render_cannot_deactivate_group_banner from "../templates/user_group_settings/cannot_deactivate_group_banner.hbs";
@@ -224,6 +225,7 @@ function initialize_tooltip_for_membership_button(group_id) {
     settings_components.initialize_disable_button_hint_popover($tooltip_wrapper, tooltip_message);
 }
 
+// Group membership button only adds or removes direct membership.
 function update_group_membership_button(group_id) {
     const $group_settings_button = group_membership_button(group_id);
 
@@ -231,8 +233,12 @@ function update_group_membership_button(group_id) {
         return;
     }
 
-    const is_member = user_groups.is_user_in_group(group_id, people.my_current_user_id());
-    if (is_member) {
+    const is_direct_member = user_groups.is_user_in_group(
+        group_id,
+        people.my_current_user_id(),
+        true,
+    );
+    if (is_direct_member) {
         $group_settings_button.text($t({defaultMessage: "Leave group"}));
     } else {
         $group_settings_button.text($t({defaultMessage: "Join group"}));
@@ -242,9 +248,9 @@ function update_group_membership_button(group_id) {
     const can_leave_group = settings_data.can_leave_user_group(group_id);
 
     let can_update_membership = true;
-    if (!is_member && !can_join_group) {
+    if (!is_direct_member && !can_join_group) {
         can_update_membership = false;
-    } else if (is_member && !can_leave_group) {
+    } else if (is_direct_member && !can_leave_group) {
         can_update_membership = false;
     }
 
@@ -319,6 +325,16 @@ export function handle_member_edit_event(group_id, user_ids) {
         item.is_member = user_groups.is_user_in_group(group_id, people.my_current_user_id());
         item.can_join = settings_data.can_join_user_group(item.id);
         item.can_leave = settings_data.can_leave_user_group(item.id);
+        item.is_direct_member = user_groups.is_direct_member_of(
+            people.my_current_user_id(),
+            item.id,
+        );
+        const associated_subgroups = user_groups.get_associated_subgroups(
+            item,
+            people.my_current_user_id(),
+        );
+        item.associated_subgroup_names =
+            user_groups.group_list_to_comma_seperated_name(associated_subgroups);
         const html = render_browse_user_groups_list_item(item);
         const $new_row = $(html);
 
@@ -328,15 +344,6 @@ export function handle_member_edit_event(group_id, user_ids) {
         }
 
         $row.replaceWith($new_row);
-    }
-
-    if (
-        !is_editing_group(group_id) &&
-        user_ids.includes(people.my_current_user_id()) &&
-        user_groups.is_user_in_group(group_id, people.my_current_user_id())
-    ) {
-        const $group_row = row_for_group_id(group.id);
-        open_group_edit_panel_for_row($group_row);
     }
 }
 
@@ -360,7 +367,7 @@ export function show_settings_for(group) {
         ),
         creator: stream_data.maybe_get_creator_details(group.creator_id),
         is_creator: group.creator_id === current_user.user_id,
-        is_member: user_groups.is_direct_member_of(people.my_current_user_id(), group.id),
+        is_direct_member: user_groups.is_direct_member_of(people.my_current_user_id(), group.id),
     });
 
     scroll_util.get_content_element($("#user_group_settings")).html(html);
@@ -654,6 +661,10 @@ export function update_group(event) {
             sync_group_permission_setting("can_leave_group", group);
             update_group_membership_button(group.id);
         }
+        if (event.data.can_remove_members_group !== undefined) {
+            sync_group_permission_setting("can_remove_members_group", group);
+            update_group_management_ui();
+        }
     }
 }
 
@@ -679,7 +690,7 @@ export function change_state(section, left_side_tab, right_side_tab) {
 
         if (left_side_tab === undefined) {
             left_side_tab = "all-groups";
-            if (user_groups.is_direct_member_of(current_user.user_id, group_id)) {
+            if (user_groups.is_user_in_group(group_id, current_user.user_id)) {
                 left_side_tab = "your-groups";
             }
         }
@@ -736,6 +747,17 @@ export function add_or_remove_from_group(group, group_row) {
     function success_callback() {
         if (group_row.length) {
             hide_membership_toggle_spinner(group_row);
+            // This should only be triggered when a user is on another group
+            // edit panel and they join a group via the left panel plus button.
+            // In that case, the edit panel of the newly joined group should
+            // open. `is_user_in_group` with direct_members_only set to true acts
+            // as a proxy to check if it's an `add_members` event.
+            if (
+                !is_editing_group(group.id) &&
+                user_groups.is_user_in_group(group.id, user_id, true)
+            ) {
+                open_group_edit_panel_for_row(group_row);
+            }
         }
     }
 
@@ -752,15 +774,15 @@ export function add_or_remove_from_group(group, group_row) {
         user_group_edit_members.edit_user_group_membership({
             group,
             removed: [user_id],
-            success_callback,
-            error_callback,
+            success: success_callback,
+            error: error_callback,
         });
     } else {
         user_group_edit_members.edit_user_group_membership({
             group,
             added: [user_id],
-            success_callback,
-            error_callback,
+            success: success_callback,
+            error: error_callback,
         });
     }
 }
@@ -878,10 +900,17 @@ export function setup_page(callback) {
             name: "user-groups-overlay",
             get_item: ListWidget.default_get_item,
             modifier_html(item) {
-                item.is_member = user_groups.is_direct_member_of(
+                item.is_member = user_groups.is_user_in_group(item.id, people.my_current_user_id());
+                item.is_direct_member = user_groups.is_direct_member_of(
                     people.my_current_user_id(),
                     item.id,
                 );
+                const associated_subgroups = user_groups.get_associated_subgroups(
+                    item,
+                    people.my_current_user_id(),
+                );
+                item.associated_subgroup_names =
+                    user_groups.group_list_to_comma_seperated_name(associated_subgroups);
                 item.can_join = settings_data.can_join_user_group(item.id);
                 item.can_leave = settings_data.can_leave_user_group(item.id);
                 return render_browse_user_groups_list_item(item);
@@ -1101,15 +1130,45 @@ export function initialize() {
     });
 
     $("#groups_overlay_container").on("click", ".join_leave_button", (e) => {
-        if ($(e.currentTarget).hasClass("disabled")) {
+        if (
+            $(e.currentTarget).hasClass("disabled") ||
+            $(e.currentTarget).hasClass("not-direct-member")
+        ) {
             // We return early if user is not allowed to join or leave a group.
             return;
         }
 
         const user_group_id = get_user_group_id(e.target);
         const user_group = user_groups.get_user_group_from_id(user_group_id);
-        const $group_row = row_for_group_id(user_group_id);
-        add_or_remove_from_group(user_group, $group_row);
+        const is_member = user_groups.is_user_in_group(user_group_id, people.my_current_user_id());
+        const is_direct_member = user_groups.is_direct_member_of(
+            people.my_current_user_id(),
+            user_group_id,
+        );
+
+        if (is_member && !is_direct_member) {
+            const associated_subgroups = user_groups.get_associated_subgroups(
+                user_group,
+                people.my_current_user_id(),
+            );
+            const associated_subgroup_names =
+                user_groups.group_list_to_comma_seperated_name(associated_subgroups);
+
+            confirm_dialog.launch({
+                html_heading: $t_html({defaultMessage: "Join group?"}),
+                html_body: render_confirm_join_group_direct_member({
+                    associated_subgroup_names,
+                }),
+                id: "confirm_join_group_direct_member",
+                on_click() {
+                    const $group_row = row_for_group_id(user_group_id);
+                    add_or_remove_from_group(user_group, $group_row);
+                },
+            });
+        } else {
+            const $group_row = row_for_group_id(user_group_id);
+            add_or_remove_from_group(user_group, $group_row);
+        }
     });
 
     $("#groups_overlay_container").on(

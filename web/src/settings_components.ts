@@ -30,6 +30,10 @@ import type {CustomProfileField, GroupSettingValue} from "./state_data.ts";
 import {current_user, realm, realm_schema} from "./state_data.ts";
 import * as stream_data from "./stream_data.ts";
 import * as stream_settings_containers from "./stream_settings_containers.ts";
+import {
+    type StreamPermissionGroupSetting,
+    stream_permission_group_settings_schema,
+} from "./stream_types.ts";
 import type {StreamSubscription} from "./sub_store.ts";
 import {stream_subscription_schema} from "./sub_store.ts";
 import type {GroupSettingPillContainer} from "./typeahead_helper.ts";
@@ -921,7 +925,8 @@ export function check_group_property_changed(elem: HTMLElement, group: UserGroup
         case "can_join_group":
         case "can_leave_group":
         case "can_manage_group":
-        case "can_mention_group": {
+        case "can_mention_group":
+        case "can_remove_members_group": {
             const pill_widget = get_group_setting_widget(property_name);
             assert(pill_widget !== null);
             proposed_val = get_group_setting_widget_value(pill_widget);
@@ -1103,8 +1108,7 @@ export function populate_data_for_stream_settings_request(
                     continue;
                 }
 
-                const stream_group_settings = new Set(["can_remove_subscribers_group"]);
-                if (stream_group_settings.has(property_name)) {
+                if (stream_permission_group_settings_schema.safeParse(property_name).success) {
                     const old_value = get_stream_settings_property_value(
                         stream_settings_property_schema.parse(property_name),
                         sub,
@@ -1385,7 +1389,7 @@ function should_disable_save_button_for_group_settings(settings: string[]): bool
                 setting_name_without_prefix,
                 "realm",
             );
-        } else if (setting_name === "can_remove_subscribers_group") {
+        } else if (stream_permission_group_settings_schema.safeParse(setting_name).success) {
             group_setting_config = group_permission_settings.get_group_permission_setting_config(
                 setting_name,
                 "stream",
@@ -1502,6 +1506,7 @@ export const group_setting_widget_map = new Map<string, GroupSettingPillContaine
     ["can_leave_group", null],
     ["can_manage_group", null],
     ["can_mention_group", null],
+    ["can_remove_members_group", null],
     ["can_remove_subscribers_group", null],
     ["realm_can_add_custom_emoji_group", null],
     ["realm_can_create_groups", null],
@@ -1562,6 +1567,7 @@ export const group_setting_name_schema = z.enum([
     "can_leave_group",
     "can_manage_group",
     "can_mention_group",
+    "can_remove_members_group",
 ]);
 
 type GroupSettingName = z.infer<typeof group_setting_name_schema>;
@@ -1681,15 +1687,13 @@ export function create_realm_group_setting_widget({
     });
 }
 
-type stream_setting_name = "can_remove_subscribers_group";
-
 export function create_stream_group_setting_widget({
     $pill_container,
     setting_name,
     sub,
 }: {
     $pill_container: JQuery;
-    setting_name: stream_setting_name;
+    setting_name: StreamPermissionGroupSetting;
     sub?: StreamSubscription;
 }): GroupSettingPillContainer {
     const pill_widget = group_setting_pill.create_pills($pill_container, setting_name, "stream");

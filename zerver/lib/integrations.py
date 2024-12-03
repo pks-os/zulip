@@ -556,7 +556,6 @@ INTEGRATIONS: dict[str, Integration] = {
     "jenkins": Integration(
         "jenkins",
         ["continuous-integration"],
-        secondary_line_text="(or Hudson)",
         doc="zerver/integrations/jenkins.md",
     ),
     "jira-plugin": Integration(
@@ -607,7 +606,12 @@ INTEGRATIONS: dict[str, Integration] = {
     "rss": Integration(
         "rss", ["communication"], display_name="RSS", doc="zerver/integrations/rss.md"
     ),
-    "svn": Integration("svn", ["version-control"], doc="zerver/integrations/svn.md"),
+    "svn": Integration(
+        "svn",
+        ["version-control"],
+        display_name="Subversion",
+        doc="zerver/integrations/svn.md",
+    ),
     "trac": Integration("trac", ["project-management"], doc="zerver/integrations/trac.md"),
     "twitter": Integration(
         "twitter",
@@ -751,7 +755,7 @@ DOC_SCREENSHOT_CONFIG: dict[str, list[BaseScreenshotConfig]] = {
     "insping": [ScreenshotConfig("website_state_available.json")],
     "intercom": [ScreenshotConfig("conversation_admin_replied.json")],
     "jira": [ScreenshotConfig("created_v1.json")],
-    "jotform": [ScreenshotConfig("response.json")],
+    "jotform": [ScreenshotConfig("response.multipart")],
     "json": [ScreenshotConfig("json_github_push__1_commit.json")],
     "librato": [ScreenshotConfig("three_conditions_alert.json", payload_as_query_param=True)],
     "lidarr": [ScreenshotConfig("lidarr_album_grabbed.json")],

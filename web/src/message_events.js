@@ -316,6 +316,8 @@ export function insert_new_messages(messages, sent_by_this_client, deliver_local
 
     for (const msg_list_data of message_lists.non_rendered_data()) {
         if (!msg_list_data.filter.can_apply_locally()) {
+            // Ideally we would ask server to if messages matches filter
+            // but it is not worth doing so for every new message.
             message_list_data_cache.remove(msg_list_data.filter);
         } else {
             message_util.add_new_messages_data(messages, msg_list_data);
@@ -626,6 +628,11 @@ export function update_messages(events) {
                 //       with data fetched from the server (which is already updated)
                 //       when we move to new narrow and what data is locally available.
                 if (changed_narrow) {
+                    // Remove outdated cached data to avoid repopulating from it.
+                    // We are yet to update the cached message list data for
+                    // the moved topics.
+                    // TODO: Update the cache instead of discarding it.
+                    message_list_data_cache.remove(new_filter);
                     const terms = new_filter.terms();
                     const opts = {
                         trigger: "stream/topic change",

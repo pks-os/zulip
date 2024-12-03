@@ -25,6 +25,7 @@ from zerver.lib.timestamp import datetime_to_timestamp
 from zerver.lib.types import AnonymousSettingGroupDict, APIStreamDict
 from zerver.lib.user_groups import (
     get_group_setting_value_for_api,
+    get_role_based_system_groups_dict,
     user_has_permission_for_group_setting,
 )
 from zerver.models import (
@@ -41,7 +42,6 @@ from zerver.models import (
     UserGroupMembership,
     UserProfile,
 )
-from zerver.models.groups import SystemGroups
 from zerver.models.realm_audit_logs import AuditLogEventType
 from zerver.models.streams import (
     bulk_get_streams,
@@ -140,6 +140,24 @@ def send_stream_creation_event(
     send_event_on_commit(realm, event, user_ids)
 
 
+def get_stream_permission_default_group(
+    setting_name: str, system_groups_name_dict: dict[str, NamedUserGroup]
+) -> UserGroup:
+    setting_default_name = Stream.stream_permission_group_settings[setting_name].default_group_name
+    return system_groups_name_dict[setting_default_name]
+
+
+def get_default_values_for_stream_permission_group_settings(realm: Realm) -> dict[str, UserGroup]:
+    group_setting_values = {}
+    system_groups_name_dict = get_role_based_system_groups_dict(realm)
+    for setting_name in Stream.stream_permission_group_settings:
+        group_setting_values[setting_name] = get_stream_permission_default_group(
+            setting_name, system_groups_name_dict
+        )
+
+    return group_setting_values
+
+
 @transaction.atomic(savepoint=False)
 def create_stream_if_needed(
     realm: Realm,
@@ -159,14 +177,26 @@ def create_stream_if_needed(
         realm, invite_only, history_public_to_subscribers
     )
 
-    if can_remove_subscribers_group is None:
-        can_remove_subscribers_group = NamedUserGroup.objects.get(
-            name=SystemGroups.ADMINISTRATORS, is_system_group=True, realm=realm
-        )
+    group_setting_values = {}
+    request_settings_dict = locals()
+    # We don't want to calculate this value if no default values are
+    # needed.
+    system_groups_name_dict = None
+    for setting_name in Stream.stream_permission_group_settings:
+        if setting_name not in request_settings_dict:  # nocoverage
+            continue
+
+        if request_settings_dict[setting_name] is None:
+            if system_groups_name_dict is None:
+                system_groups_name_dict = get_role_based_system_groups_dict(realm)
+            group_setting_values[setting_name] = get_stream_permission_default_group(
+                setting_name, system_groups_name_dict
+            )
+        else:
+            group_setting_values[setting_name] = request_settings_dict[setting_name]
 
     stream_name = stream_name.strip()
 
-    assert can_remove_subscribers_group is not None
     (stream, created) = Stream.objects.get_or_create(
         realm=realm,
         name__iexact=stream_name,
@@ -180,7 +210,7 @@ def create_stream_if_needed(
             history_public_to_subscribers=history_public_to_subscribers,
             is_in_zephyr_realm=realm.is_zephyr_mirror_realm,
             message_retention_days=message_retention_days,
-            can_remove_subscribers_group=can_remove_subscribers_group,
+            **group_setting_values,
         ),
     )
 
@@ -1045,6 +1075,9 @@ def get_setting_values_for_group_settings(
             setting_groups_dict[group.id] = group.id
         else:
             anonymous_group_ids.append(group.id)
+
+    if len(anonymous_group_ids) == 0:
+        return setting_groups_dict
 
     user_members = (
         UserGroupMembership.objects.filter(user_group_id__in=anonymous_group_ids)

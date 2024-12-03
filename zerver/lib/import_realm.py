@@ -46,7 +46,11 @@ from zerver.lib.partial import partial
 from zerver.lib.push_notifications import sends_notifications_directly
 from zerver.lib.remote_server import maybe_enqueue_audit_log_upload
 from zerver.lib.server_initialization import create_internal_realm, server_initialized
-from zerver.lib.streams import render_stream_description, update_stream_active_status_for_realm
+from zerver.lib.streams import (
+    get_stream_permission_default_group,
+    render_stream_description,
+    update_stream_active_status_for_realm,
+)
 from zerver.lib.thumbnail import THUMBNAIL_ACCEPT_IMAGE_TYPES, BadImageError, maybe_thumbnail
 from zerver.lib.timestamp import datetime_to_timestamp
 from zerver.lib.upload import ensure_avatar_image, sanitize_name, upload_backend, upload_emoji_image
@@ -243,13 +247,15 @@ def fix_upload_links(data: TableData, message_table: TableName) -> None:
                     )
 
 
-def fix_streams_can_remove_subscribers_group_column(data: TableData, realm: Realm) -> None:
+def fix_stream_permission_group_settings(
+    data: TableData, system_groups_name_dict: dict[str, NamedUserGroup]
+) -> None:
     table = get_db_table(Stream)
-    admins_group = NamedUserGroup.objects.get(
-        name=SystemGroups.ADMINISTRATORS, realm=realm, is_system_group=True
-    )
     for stream in data[table]:
-        stream["can_remove_subscribers_group"] = admins_group
+        for setting_name in Stream.stream_permission_group_settings:
+            stream[setting_name] = get_stream_permission_default_group(
+                setting_name, system_groups_name_dict
+            )
 
 
 def create_subscription_events(data: TableData, realm_id: int) -> None:
@@ -783,6 +789,7 @@ def bulk_import_named_user_groups(data: TableData) -> None:
             group["can_leave_group_id"],
             group["can_manage_group_id"],
             group["can_mention_group_id"],
+            group["can_remove_members_group_id"],
             group["deactivated"],
             group["date_created"],
         )
@@ -791,7 +798,7 @@ def bulk_import_named_user_groups(data: TableData) -> None:
 
     query = SQL(
         """
-        INSERT INTO zerver_namedusergroup (usergroup_ptr_id, realm_id, name, description, is_system_group, can_add_members_group_id, can_join_group_id,  can_leave_group_id, can_manage_group_id, can_mention_group_id, deactivated, date_created)
+        INSERT INTO zerver_namedusergroup (usergroup_ptr_id, realm_id, name, description, is_system_group, can_add_members_group_id, can_join_group_id,  can_leave_group_id, can_manage_group_id, can_mention_group_id, can_remove_members_group_id, deactivated, date_created)
         VALUES %s
         """
     )
@@ -1267,9 +1274,9 @@ def do_import_realm(import_dir: Path, subdomain: str, processes: int = 1) -> Rea
 
         # We expect Zulip server exports to contain these system groups,
         # this logic here is needed to handle the imports from other services.
-        role_system_groups_dict: dict[int, NamedUserGroup] | None = None
+        system_groups_name_dict: dict[str, NamedUserGroup] | None = None
         if "zerver_usergroup" not in data:
-            role_system_groups_dict = create_system_user_groups_for_realm(realm)
+            system_groups_name_dict = create_system_user_groups_for_realm(realm)
 
         # Email tokens will automatically be randomly generated when the
         # Stream objects are created by Django.
@@ -1287,15 +1294,14 @@ def do_import_realm(import_dir: Path, subdomain: str, processes: int = 1) -> Rea
             creator_id = stream.pop("creator_id", None)
             stream_id_to_creator_id[stream["id"]] = creator_id
 
-        if role_system_groups_dict is not None:
+        if system_groups_name_dict is not None:
             # Because the system user groups are missing, we manually set up
-            # the defaults for can_remove_subscribers_group for all the
+            # the defaults for stream permission settings for all the
             # streams.
-            fix_streams_can_remove_subscribers_group_column(data, realm)
+            fix_stream_permission_group_settings(data, system_groups_name_dict)
         else:
-            re_map_foreign_keys(
-                data, "zerver_stream", "can_remove_subscribers_group", related_table="usergroup"
-            )
+            for setting_name in Stream.stream_permission_group_settings:
+                re_map_foreign_keys(data, "zerver_stream", setting_name, related_table="usergroup")
         # Handle rendering of stream descriptions for import from non-Zulip
         for stream in data["zerver_stream"]:
             stream["rendered_description"] = render_stream_description(stream["description"], realm)
@@ -1539,8 +1545,8 @@ def do_import_realm(import_dir: Path, subdomain: str, processes: int = 1) -> Rea
     # We expect Zulip server exports to contain UserGroupMembership objects
     # for system groups, this logic here is needed to handle the imports from
     # other services.
-    if role_system_groups_dict is not None:
-        add_users_to_system_user_groups(realm, user_profiles, role_system_groups_dict)
+    if system_groups_name_dict is not None:
+        add_users_to_system_user_groups(realm, user_profiles, system_groups_name_dict)
 
     if "zerver_botstoragedata" in data:
         re_map_foreign_keys(
@@ -2077,13 +2083,18 @@ def import_analytics_data(realm: Realm, import_dir: Path, crossrealm_user_ids: s
 def add_users_to_system_user_groups(
     realm: Realm,
     user_profiles: list[UserProfile],
-    role_system_groups_dict: dict[int, NamedUserGroup],
+    system_groups_name_dict: dict[str, NamedUserGroup],
 ) -> None:
     full_members_system_group = NamedUserGroup.objects.get(
         name=SystemGroups.FULL_MEMBERS,
         realm=realm,
         is_system_group=True,
     )
+
+    role_system_groups_dict: dict[int, NamedUserGroup] = dict()
+    for role in NamedUserGroup.SYSTEM_USER_GROUP_ROLE_MAP:
+        group_name = NamedUserGroup.SYSTEM_USER_GROUP_ROLE_MAP[role]["name"]
+        role_system_groups_dict[role] = system_groups_name_dict[group_name]
 
     usergroup_memberships = []
     for user_profile in user_profiles:
