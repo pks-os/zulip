@@ -56,6 +56,7 @@ import type {HTMLSelectOneElement} from "./types.ts";
 import * as ui_report from "./ui_report.ts";
 import type {UploadWidget} from "./upload_widget.ts";
 import * as user_deactivation_ui from "./user_deactivation_ui.ts";
+import * as user_group_edit_members from "./user_group_edit_members.ts";
 import * as user_groups from "./user_groups.ts";
 import type {UserGroup} from "./user_groups.ts";
 import * as user_pill from "./user_pill.ts";
@@ -77,6 +78,7 @@ export type CustomProfileFieldData = {
 };
 
 let user_streams_list_widget: ListWidgetType<StreamSubscription> | undefined;
+let user_groups_list_widget: ListWidgetType<UserGroup> | undefined;
 let user_profile_subscribe_widget: DropdownWidget | undefined;
 let toggler: components.Toggle;
 let bot_owner_dropdown_widget: DropdownWidget | undefined;
@@ -119,6 +121,15 @@ export function update_user_profile_streams_list_for_users(user_ids: number[]): 
         const user_streams = stream_data.get_streams_for_user(user_id).subscribed;
         user_streams.sort(compare_by_name);
         user_streams_list_widget.replace_list_data(user_streams);
+    }
+}
+
+export function update_user_profile_groups_list_for_users(user_ids: number[]): void {
+    const user_id = get_user_id_if_user_profile_modal_open();
+    if (user_id && user_ids.includes(user_id) && user_groups_list_widget !== undefined) {
+        const user_groups_list = user_groups.get_user_groups_of_user(user_id);
+        user_groups_list.sort(compare_by_name);
+        user_groups_list_widget.replace_list_data(user_groups_list);
     }
 }
 
@@ -291,12 +302,30 @@ function format_user_stream_list_item_html(stream: StreamSubscription, user: Use
     });
 }
 
-function format_user_group_list_item_html(group: UserGroup): string {
+function format_user_group_list_item_html(group: UserGroup, user: User): string {
+    const is_direct_member = group.members.has(user.user_id);
+    const is_me = user.user_id === current_user.user_id;
+    const can_leave_user_group = is_me && settings_data.can_leave_user_group(group.id);
+    const subgroups_name = [];
+    if (!is_direct_member) {
+        const subgroups = user_groups.get_direct_subgroups_of_group(group).sort(compare_by_name);
+        subgroups_name.push(
+            ...subgroups
+                .filter((subgroup) =>
+                    user_groups.is_user_in_group(subgroup.id, user.user_id, false),
+                )
+                .map((subgroup) => subgroup.name),
+        );
+    }
     return render_user_group_list_item({
         group_id: group.id,
         name: group.name,
         group_edit_url: hash_util.group_edit_url(group, "general"),
         is_guest: current_user.is_guest,
+        is_direct_member,
+        subgroups_name: subgroups_name.join(", "),
+        is_me,
+        can_remove_members: settings_data.can_manage_user_group(group.id) || can_leave_user_group,
     });
 }
 
@@ -332,14 +361,14 @@ function render_user_group_list(groups: UserGroup[], user: User): void {
     groups.sort(compare_by_name);
     const $container = $("#user-profile-modal .user-group-list");
     $container.empty();
-    ListWidget.create($container, groups, {
+    user_groups_list_widget = ListWidget.create($container, groups, {
         name: `user-${user.user_id}-group-list`,
         get_item: ListWidget.default_get_item,
         callback_after_render() {
             $container.parent().removeClass("empty-list");
         },
         modifier_html(item) {
-            return format_user_group_list_item_html(item);
+            return format_user_group_list_item_html(item, user);
         },
         $simplebar_container: $("#user-profile-modal .modal__body"),
     });
@@ -1203,6 +1232,43 @@ export function initialize(): void {
             return;
         }
         handle_remove_stream_subscription(target_user_id, sub, removal_success, removal_failure);
+    });
+
+    $("body").on("click", "#user-profile-modal .remove-member-button", (e) => {
+        e.preventDefault();
+        const $group_row = $(e.currentTarget).closest("[data-group-id]");
+        const group_id = Number.parseInt($group_row.attr("data-group-id")!, 10);
+        const target_user_id = Number.parseInt($("#user-profile-modal").attr("data-user-id")!, 10);
+        const target_user_group = user_groups.get_user_group_from_id(group_id);
+        const $alert_box = $("#user-profile-groups-tab .user-profile-group-list-alert");
+
+        function removal_success(): void {
+            ui_report.success($t_html({defaultMessage: "Removed successfully!"}), $alert_box, 1200);
+        }
+
+        function removal_failure(): void {
+            let error_message;
+            if (people.is_my_user_id(target_user_id)) {
+                error_message = $t(
+                    {defaultMessage: "Error leaving group {group_name}"},
+                    {group_name: target_user_group.name},
+                );
+            } else {
+                error_message = $t(
+                    {defaultMessage: "Error removing user from group {group_name}"},
+                    {group_name: target_user_group.name},
+                );
+            }
+
+            ui_report.client_error(error_message, $alert_box, 1200);
+        }
+
+        user_group_edit_members.edit_user_group_membership({
+            group: target_user_group,
+            removed: [target_user_id],
+            success: removal_success,
+            error: removal_failure,
+        });
     });
 
     $("body").on("click", "#user-profile-modal #clear_stream_search", (e) => {

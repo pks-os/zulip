@@ -3,8 +3,8 @@
 In the Zulip web and desktop app, the right sidebar shows a list of users in
 your organization. The user list has up to three section:
 
-- **In this conversation**: Recent participants in the conversation you're viewing.
-- **In this channel** or **Others in this channel**: Subscribers to the channel you're viewing.
+- **This conversation**: Recent participants in the conversation you're viewing.
+- **This channel**: Subscribers to the channel you're viewing.
 - **Others**: Everyone else.
 
 In organizations with up to 600 users, everyone is shown. In larger
@@ -13,8 +13,10 @@ but everyone is included when you [search](#filter-users).
 [Deactivated users](/help/deactivate-or-reactivate-a-user) and
 [bots](/help/bots-overview) are not listed.
 
-To avoid distraction, you can [hide](#show-or-hide-the-user-list) the user list
-any time.
+You can choose to have each user's name appear with their
+[avatar](/help/change-your-profile-picture), or select a one of the more compact
+user list styles. To avoid distraction, you can
+[hide](#show-or-hide-the-user-list) the user list any time.
 
 ## Filter users
 
@@ -32,6 +34,28 @@ any time.
 
     You can also use the <kbd>W</kbd> keyboard shortcut to start searching for
     a person.
+
+{end_tabs}
+
+## Configure user list style
+
+{start_tabs}
+
+{tab|via-right-sidebar}
+
+1. If the user list is hidden, click the **user list** (<i class="zulip-icon
+   zulip-icon-triple-users"></i> ) icon in the upper right to show it.
+
+1. Click the **ellipsis** (<i class="zulip-icon zulip-icon-more-vertical"></i>)
+   to the right of the **Filter users** box.
+
+1. Toggle your preferred option for **User list style**.
+
+{tab|via-personal-settings}
+
+{settings_tab|preferences}
+
+1. Under **Information**, toggle your preferred option for **User list style**.
 
 {end_tabs}
 

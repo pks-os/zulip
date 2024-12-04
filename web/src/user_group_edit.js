@@ -35,6 +35,7 @@ import * as user_group_components from "./user_group_components.ts";
 import * as user_group_create from "./user_group_create.ts";
 import * as user_group_edit_members from "./user_group_edit_members.ts";
 import * as user_groups from "./user_groups.ts";
+import * as user_profile from "./user_profile.ts";
 import * as util from "./util.ts";
 
 export let toggler;
@@ -279,10 +280,7 @@ export function handle_subgroup_edit_event(group_id) {
     }
 }
 
-export function handle_member_edit_event(group_id, user_ids) {
-    if (!overlays.groups_open()) {
-        return;
-    }
+function update_settings_for_group_overlay(group_id, user_ids) {
     const group = user_groups.get_user_group_from_id(group_id);
 
     // update members list if currently rendered.
@@ -345,6 +343,13 @@ export function handle_member_edit_event(group_id, user_ids) {
 
         $row.replaceWith($new_row);
     }
+}
+
+export function handle_member_edit_event(group_id, user_ids) {
+    if (overlays.groups_open()) {
+        update_settings_for_group_overlay(group_id, user_ids);
+    }
+    user_profile.update_user_profile_groups_list_for_users(user_ids);
 }
 
 export function update_group_details(group) {

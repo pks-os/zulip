@@ -9,9 +9,9 @@ from django.utils.translation import gettext as _
 
 from zerver.lib.default_streams import get_default_stream_ids_for_realm
 from zerver.lib.exceptions import (
+    CannotAdministerChannelError,
     IncompatibleParametersError,
     JsonableError,
-    OrganizationAdministratorRequiredError,
     OrganizationOwnerRequiredError,
 )
 from zerver.lib.markdown import markdown_convert
@@ -42,6 +42,7 @@ from zerver.models import (
     UserGroupMembership,
     UserProfile,
 )
+from zerver.models.groups import SystemGroups
 from zerver.models.realm_audit_logs import AuditLogEventType
 from zerver.models.streams import (
     bulk_get_streams,
@@ -76,6 +77,7 @@ class StreamDict(TypedDict, total=False):
     stream_post_policy: int
     history_public_to_subscribers: bool | None
     message_retention_days: int | None
+    can_administer_channel_group: UserGroup | None
     can_remove_subscribers_group: UserGroup | None
 
 
@@ -141,18 +143,32 @@ def send_stream_creation_event(
 
 
 def get_stream_permission_default_group(
-    setting_name: str, system_groups_name_dict: dict[str, NamedUserGroup]
+    setting_name: str,
+    system_groups_name_dict: dict[str, NamedUserGroup],
+    creator: UserProfile | None = None,
 ) -> UserGroup:
     setting_default_name = Stream.stream_permission_group_settings[setting_name].default_group_name
+    if setting_default_name == "stream_creator_or_nobody":
+        if creator:
+            default_group = UserGroup(
+                realm=creator.realm,
+            )
+            default_group.save()
+            UserGroupMembership.objects.create(user_profile=creator, user_group=default_group)
+            return default_group
+        else:
+            return system_groups_name_dict[SystemGroups.NOBODY]
     return system_groups_name_dict[setting_default_name]
 
 
-def get_default_values_for_stream_permission_group_settings(realm: Realm) -> dict[str, UserGroup]:
+def get_default_values_for_stream_permission_group_settings(
+    realm: Realm, creator: UserProfile | None = None
+) -> dict[str, UserGroup]:
     group_setting_values = {}
     system_groups_name_dict = get_role_based_system_groups_dict(realm)
     for setting_name in Stream.stream_permission_group_settings:
         group_setting_values[setting_name] = get_stream_permission_default_group(
-            setting_name, system_groups_name_dict
+            setting_name, system_groups_name_dict, creator
         )
 
     return group_setting_values
@@ -169,6 +185,7 @@ def create_stream_if_needed(
     history_public_to_subscribers: bool | None = None,
     stream_description: str = "",
     message_retention_days: int | None = None,
+    can_administer_channel_group: UserGroup | None = None,
     can_remove_subscribers_group: UserGroup | None = None,
     acting_user: UserProfile | None = None,
     setting_groups_dict: dict[int, int | AnonymousSettingGroupDict] | None = None,
@@ -190,7 +207,7 @@ def create_stream_if_needed(
             if system_groups_name_dict is None:
                 system_groups_name_dict = get_role_based_system_groups_dict(realm)
             group_setting_values[setting_name] = get_stream_permission_default_group(
-                setting_name, system_groups_name_dict
+                setting_name, system_groups_name_dict, creator=acting_user
             )
         else:
             group_setting_values[setting_name] = request_settings_dict[setting_name]
@@ -273,6 +290,7 @@ def create_streams_if_needed(
             history_public_to_subscribers=stream_dict.get("history_public_to_subscribers"),
             stream_description=stream_dict.get("description", ""),
             message_retention_days=stream_dict.get("message_retention_days", None),
+            can_administer_channel_group=stream_dict.get("can_administer_channel_group", None),
             can_remove_subscribers_group=stream_dict.get("can_remove_subscribers_group", None),
             acting_user=acting_user,
             setting_groups_dict=setting_groups_dict,
@@ -412,7 +430,10 @@ def check_stream_access_for_delete_or_update(
     if sub is None and stream.invite_only:
         raise JsonableError(error)
 
-    raise OrganizationAdministratorRequiredError
+    if can_administer_channel(stream, user_profile):
+        return
+
+    raise CannotAdministerChannelError
 
 
 def access_stream_for_delete_or_update(
@@ -719,6 +740,16 @@ def can_remove_subscribers_from_stream(
     )
 
 
+def can_administer_channel(channel: Stream, user_profile: UserProfile) -> bool:
+    group_allowed_to_administer_channel = channel.can_administer_channel_group
+    assert group_allowed_to_administer_channel is not None
+    return user_has_permission_for_group_setting(
+        group_allowed_to_administer_channel,
+        user_profile,
+        Stream.stream_permission_group_settings["can_administer_channel_group"],
+    )
+
+
 def filter_stream_authorization(
     user_profile: UserProfile, streams: Collection[Stream]
 ) -> tuple[list[Stream], list[Stream]]:
@@ -950,14 +981,19 @@ def stream_to_dict(
         stream_weekly_traffic = None
 
     if setting_groups_dict is not None:
+        can_administer_channel_group = setting_groups_dict[stream.can_administer_channel_group_id]
         can_remove_subscribers_group = setting_groups_dict[stream.can_remove_subscribers_group_id]
     else:
+        can_administer_channel_group = get_group_setting_value_for_api(
+            stream.can_administer_channel_group
+        )
         can_remove_subscribers_group = get_group_setting_value_for_api(
             stream.can_remove_subscribers_group
         )
 
     return APIStreamDict(
         is_archived=stream.deactivated,
+        can_administer_channel_group=can_administer_channel_group,
         can_remove_subscribers_group=can_remove_subscribers_group,
         creator_id=stream.creator_id,
         date_created=datetime_to_timestamp(stream.date_created),
