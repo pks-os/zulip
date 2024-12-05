@@ -49,9 +49,20 @@ export function set_upload_in_progress(status: boolean): void {
     update_send_button_status();
 }
 
-function set_message_too_long(status: boolean): void {
+function set_message_too_long_for_compose(status: boolean): void {
     message_too_long = status;
     update_send_button_status();
+}
+
+function set_message_too_long_for_edit(status: boolean, $container: JQuery): void {
+    message_too_long = status;
+    const $message_edit_save_container = $container.find(".message_edit_save_container");
+    const save_is_disabled =
+        message_too_long ||
+        $message_edit_save_container.hasClass("message-edit-time-limit-expired");
+
+    $container.find(".message_edit_save").prop("disabled", save_is_disabled);
+    $message_edit_save_container.toggleClass("disabled-message-edit-save", save_is_disabled);
 }
 
 export function set_recipient_disallowed(status: boolean): void {
@@ -78,6 +89,25 @@ export function get_disabled_send_tooltip(): string {
     return "";
 }
 
+export function get_disabled_save_tooltip($container: JQuery): string {
+    const $button_wrapper = $container.find(".message_edit_save_container");
+    if ($button_wrapper.hasClass("message-edit-time-limit-expired")) {
+        return $t({
+            defaultMessage: "You can no longer save changes to this message.",
+        });
+    }
+    if (message_too_long) {
+        return $t(
+            {
+                defaultMessage: `Message length shouldn't be greater than {max_length} characters.`,
+            },
+            {
+                max_length: realm.max_message_length,
+            },
+        );
+    }
+    return "";
+}
 export function needs_subscribe_warning(user_id: number, stream_id: number): boolean {
     // This returns true if all of these conditions are met:
     //  * the user is valid
@@ -717,47 +747,65 @@ function validate_private_message(): boolean {
     return true;
 }
 
-export function check_overflow_text(): number {
+export function check_overflow_text($container: JQuery): number {
     // This function is called when typing every character in the
     // compose box, so it's important that it not doing anything
     // expensive.
-    const text = compose_state.message_content();
+    const $textarea = $container.find<HTMLTextAreaElement>(".message-textarea");
+    // Match the behavior of compose_state.message_content of trimming trailing whitespace
+    const text = $textarea.val()!.trimEnd();
     const max_length = realm.max_message_length;
     const remaining_characters = max_length - text.length;
-    const $indicator = $("#compose-limit-indicator");
+    const $indicator = $container.find(".message-limit-indicator");
+    const is_edit_container = $textarea.closest(".message_row").length > 0;
 
     if (text.length > max_length) {
         $indicator.addClass("over_limit");
-        $("textarea#compose-textarea").addClass("over_limit");
+        $textarea.addClass("over_limit");
         $indicator.html(
             render_compose_limit_indicator({
                 remaining_characters,
             }),
         );
-        set_message_too_long(true);
+        if (is_edit_container) {
+            set_message_too_long_for_edit(true, $container);
+        } else {
+            set_message_too_long_for_compose(true);
+        }
     } else if (remaining_characters <= 900) {
         $indicator.removeClass("over_limit");
-        $("textarea#compose-textarea").removeClass("over_limit");
+        $textarea.removeClass("over_limit");
         $indicator.html(
             render_compose_limit_indicator({
                 remaining_characters,
             }),
         );
-        set_message_too_long(false);
+        if (is_edit_container) {
+            set_message_too_long_for_edit(false, $container);
+        } else {
+            set_message_too_long_for_compose(false);
+        }
     } else {
         $indicator.text("");
-        $("textarea#compose-textarea").removeClass("over_limit");
+        $textarea.removeClass("over_limit");
 
-        set_message_too_long(false);
+        if (is_edit_container) {
+            set_message_too_long_for_edit(false, $container);
+        } else {
+            set_message_too_long_for_compose(false);
+        }
     }
 
     return text.length;
 }
 
-export function validate_message_length(): boolean {
-    if (compose_state.message_content().length > realm.max_message_length) {
-        $("textarea#compose-textarea").addClass("flash");
-        setTimeout(() => $("textarea#compose-textarea").removeClass("flash"), 1500);
+export function validate_message_length($container: JQuery): boolean {
+    const $textarea = $container.find<HTMLTextAreaElement>(".message-textarea");
+    // Match the behavior of compose_state.message_content of trimming trailing whitespace
+    const text = $textarea.val()!.trimEnd();
+    if (text.length > realm.max_message_length) {
+        $textarea.addClass("flash");
+        setTimeout(() => $textarea.removeClass("flash"), 1500);
         return false;
     }
     return true;
@@ -781,7 +829,7 @@ export function validate(scheduling_message: boolean): boolean {
         );
         return false;
     }
-    if (!validate_message_length()) {
+    if (!validate_message_length($("#send_message_form"))) {
         return false;
     }
 

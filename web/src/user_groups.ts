@@ -11,6 +11,7 @@ import type {GroupPermissionSetting, GroupSettingValue, StateData} from "./state
 import {current_user, raw_user_group_schema, realm} from "./state_data.ts";
 import type {UserOrMention} from "./typeahead_helper.ts";
 import type {UserGroupUpdateEvent} from "./types.ts";
+import * as util from "./util.ts";
 
 type UserGroupRaw = z.infer<typeof raw_user_group_schema>;
 
@@ -433,8 +434,12 @@ export function get_associated_subgroups(user_group: UserGroup, user_id: number)
     return subgroups;
 }
 
-export function group_list_to_comma_seperated_name(user_groups: UserGroup[]): string {
-    return user_groups.map((user_group) => user_group.name).join(", ");
+export function format_group_list(user_groups: UserGroup[]): string {
+    return util.format_array_as_list(
+        user_groups.map((user_group) => user_group.name),
+        "short",
+        "conjunction",
+    );
 }
 
 export function is_user_in_setting_group(
@@ -472,19 +477,10 @@ export function check_system_user_group_allowed_for_setting(
     group_setting_config: GroupPermissionSetting,
     for_new_settings_ui: boolean,
 ): boolean {
-    const {
-        allow_internet_group,
-        allow_owners_group,
-        allow_nobody_group,
-        allow_everyone_group,
-        allowed_system_groups,
-    } = group_setting_config;
+    const {allow_internet_group, allow_nobody_group, allow_everyone_group, allowed_system_groups} =
+        group_setting_config;
 
     if (!allow_internet_group && group_name === "role:internet") {
-        return false;
-    }
-
-    if (!allow_owners_group && group_name === "role:owners") {
         return false;
     }
 

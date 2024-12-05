@@ -14,9 +14,11 @@ import * as message_feed_top_notices from "./message_feed_top_notices.ts";
 import * as message_helper from "./message_helper.ts";
 import type {MessageList} from "./message_list.ts";
 import type {MessageListData} from "./message_list_data.ts";
+import * as message_list_data_cache from "./message_list_data_cache.ts";
 import * as message_lists from "./message_lists.ts";
 import {raw_message_schema} from "./message_store.ts";
 import * as message_util from "./message_util.ts";
+import * as message_viewport from "./message_viewport.ts";
 import * as narrow_banner from "./narrow_banner.ts";
 import {page_params} from "./page_params.ts";
 import * as people from "./people.ts";
@@ -60,6 +62,7 @@ type MessageFetchAPIParams = {
 };
 
 let first_messages_fetch = true;
+let initial_backfill_for_all_messages_done = false;
 export let initial_narrow_pointer: number | undefined;
 export let initial_narrow_offset: number | undefined;
 
@@ -118,11 +121,7 @@ export function fetch_more_if_required_for_current_msg_list(
     looking_for_old_msgs: boolean,
 ): void {
     assert(message_lists.current !== undefined);
-    if (message_lists.current.is_combined_feed_view) {
-        return;
-    }
-
-    if (has_found_oldest && has_found_newest) {
+    if (has_found_oldest && has_found_newest && message_lists.current.visibly_empty()) {
         // Even after loading more messages, we have
         // no messages to display in this narrow.
         narrow_banner.show_empty_narrow_message();
@@ -180,7 +179,7 @@ function process_result(data: MessageFetchResponse, opts: MessageFetchOptions): 
         // the messages we requested, and all of them are in muted
         // topics, but there are older messages for this stream that
         // we need to ask the server for.
-        message_lists.current.visibly_empty()
+        (message_lists.current.visibly_empty() || !message_viewport.can_scroll())
     ) {
         const looking_for_new_msgs = opts.num_after > 0;
         const looking_for_old_msgs = opts.num_before > 0;
@@ -671,6 +670,7 @@ export function initialize(finished_initial_fetch: () => void): void {
         }
 
         if (data.found_oldest) {
+            initial_backfill_for_all_messages_done = true;
             return;
         }
 
@@ -683,10 +683,12 @@ export function initialize(finished_initial_fetch: () => void): void {
             all_messages_data.num_items() >= consts.minimum_initial_backfill_size &&
             latest_message.timestamp < fetch_target_day_timestamp
         ) {
+            initial_backfill_for_all_messages_done = true;
             return;
         }
 
         if (all_messages_data.num_items() >= consts.maximum_initial_backfill_size) {
+            initial_backfill_for_all_messages_done = true;
             return;
         }
 
@@ -717,6 +719,54 @@ export function initialize(finished_initial_fetch: () => void): void {
             recent_view_ui.process_messages(messages, rows_order_changed, all_messages_data);
         } catch (error) {
             blueslip.error("Error in recent_view_ui.process_messages", undefined, error);
+        }
+
+        if (
+            !recent_view_ui.is_backfill_in_progress &&
+            !first_messages_fetch &&
+            initial_backfill_for_all_messages_done
+        ) {
+            // We only populate other cached data for major backfills.
+            return;
+        }
+
+        // Since we backfill a lot more messages here compared to rendered message list,
+        // we can try populating them if we can do so locally.
+        for (const msg_list_data of message_list_data_cache.all()) {
+            if (msg_list_data === all_messages_data) {
+                continue;
+            }
+
+            if (!msg_list_data.filter.can_apply_locally()) {
+                continue;
+            }
+
+            if (msg_list_data.visibly_empty()) {
+                // If the message list is visibly empty, we don't want to add
+                // message here to break the continuous message history.
+                // We will rely here on our backfill logic to render any visible
+                // messages if we can.
+                continue;
+            }
+
+            // This callback is only called when backfilling messages,
+            // so we need to check for the presence of any message from
+            // the message list in the all_messages_data to
+            // check for continuous message history for the message list.
+            const first_message = msg_list_data.first();
+            assert(first_message !== undefined);
+            if (all_messages_data.get(first_message.id) !== undefined) {
+                const messages_to_populate = all_messages_data.message_range(0, first_message.id);
+                if (msg_list_data.rendered_message_list_id) {
+                    const msg_list = message_lists.rendered_message_lists.get(
+                        msg_list_data.rendered_message_list_id,
+                    );
+                    assert(msg_list !== undefined);
+                    msg_list.add_messages(messages_to_populate, {});
+                } else {
+                    msg_list_data.add_messages(messages_to_populate);
+                }
+            }
         }
     });
 

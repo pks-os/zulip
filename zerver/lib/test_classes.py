@@ -49,12 +49,14 @@ from zerver.actions.realm_settings import (
 from zerver.actions.streams import bulk_add_subscriptions, bulk_remove_subscriptions
 from zerver.decorator import do_two_factor_login
 from zerver.lib.cache import bounce_key_prefix_for_testing
+from zerver.lib.email_notifications import MissedMessageData, handle_missedmessage_emails
 from zerver.lib.initial_password import initial_password
 from zerver.lib.mdiff import diff_strings
 from zerver.lib.message import access_message
 from zerver.lib.notification_data import UserMessageNotificationsData
 from zerver.lib.per_request_cache import flush_per_request_caches
 from zerver.lib.redis_utils import bounce_redis_key_prefix_for_testing
+from zerver.lib.response import MutableJsonResponse
 from zerver.lib.sessions import get_session_dict_user
 from zerver.lib.soft_deactivation import do_soft_deactivate_users
 from zerver.lib.stream_subscription import get_subscribed_stream_ids_for_user
@@ -1230,23 +1232,32 @@ Output:
             json = orjson.loads(result.content)
         except orjson.JSONDecodeError:  # nocoverage
             json = {"msg": "Error parsing JSON in response!"}
-        self.assertEqual(result.status_code, 200, json["msg"])
-        self.assertEqual(json.get("result"), "success")
-        # We have a msg key for consistency with errors, but it typically has an
-        # empty value.
-        self.assertIn("msg", json)
-        self.assertNotEqual(json["msg"], "Error parsing JSON in response!")
-        # Check ignored parameters.
-        if ignored_parameters is None:
-            self.assertNotIn("ignored_parameters_unsupported", json)
-        else:
-            self.assertIn("ignored_parameters_unsupported", json)
-            self.assert_length(json["ignored_parameters_unsupported"], len(ignored_parameters))
-            for param in ignored_parameters:
-                self.assertTrue(param in json["ignored_parameters_unsupported"])
+
+        try:
+            self.assertEqual(result.status_code, 200, json["msg"])
+            self.assertEqual(json.get("result"), "success")
+            # We have a msg key for consistency with errors, but it typically has an
+            # empty value.
+            self.assertIn("msg", json)
+            self.assertNotEqual(json["msg"], "Error parsing JSON in response!")
+            # Check ignored parameters.
+            if ignored_parameters is None:
+                self.assertNotIn("ignored_parameters_unsupported", json)
+            else:
+                self.assertIn("ignored_parameters_unsupported", json)
+                self.assert_length(json["ignored_parameters_unsupported"], len(ignored_parameters))
+                for param in ignored_parameters:
+                    self.assertTrue(param in json["ignored_parameters_unsupported"])
+        except AssertionError as e:  # nocoverage
+            if isinstance(result, MutableJsonResponse):
+                raise e from result.exception
+            raise
+
         return json
 
-    def get_json_error(self, result: "TestHttpResponse", status_code: int = 400) -> str:
+    def get_json_error(
+        self, result: Union["TestHttpResponse", HttpResponse], status_code: int = 400
+    ) -> str:
         try:
             json = orjson.loads(result.content)
         except orjson.JSONDecodeError:  # nocoverage
@@ -1256,13 +1267,18 @@ Output:
         return json["msg"]
 
     def assert_json_error(
-        self, result: "TestHttpResponse", msg: str, status_code: int = 400
+        self, result: Union["TestHttpResponse", HttpResponse], msg: str, status_code: int = 400
     ) -> None:
         """
         Invalid POSTs return an error status code and JSON of the form
         {"result": "error", "msg": "reason"}.
         """
-        self.assertEqual(self.get_json_error(result, status_code=status_code), msg)
+        try:
+            self.assertEqual(self.get_json_error(result, status_code=status_code), msg)
+        except AssertionError as e:  # nocoverage
+            if isinstance(result, MutableJsonResponse):
+                raise e from result.exception
+            raise
 
     def assert_length(self, items: Collection[Any] | QuerySet[Any, Any], count: int) -> None:
         actual_count = len(items)
@@ -1308,9 +1324,17 @@ Output:
             )
 
     def assert_json_error_contains(
-        self, result: "TestHttpResponse", msg_substring: str, status_code: int = 400
+        self,
+        result: Union["TestHttpResponse", HttpResponse],
+        msg_substring: str,
+        status_code: int = 400,
     ) -> None:
-        self.assertIn(msg_substring, self.get_json_error(result, status_code=status_code))
+        try:
+            self.assertIn(msg_substring, self.get_json_error(result, status_code=status_code))
+        except AssertionError as e:  # nocoverage
+            if isinstance(result, MutableJsonResponse):
+                raise e from result.exception
+            raise
 
     def assert_in_response(
         self, substring: str, response: Union["TestHttpResponse", HttpResponse]
@@ -2217,6 +2241,12 @@ class ZulipTestCase(ZulipTestCaseMixin, TestCase):
             # the Rabbitmq queue, which in testing means we
             # immediately run the worker for it, producing the thumbnails.
             return self.upload_image(image_name)
+
+    def handle_missedmessage_emails(
+        self, user_profile_id: int, message_ids: dict[int, MissedMessageData]
+    ) -> None:
+        with self.captureOnCommitCallbacks(execute=True):
+            handle_missedmessage_emails(user_profile_id, message_ids)
 
 
 def get_row_ids_in_all_tables() -> Iterator[tuple[str, set[int]]]:

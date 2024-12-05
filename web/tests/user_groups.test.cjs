@@ -2,6 +2,7 @@
 
 const assert = require("node:assert/strict");
 
+const example_settings = require("./lib/example_settings.cjs");
 const {zrequire} = require("./lib/namespace.cjs");
 const {run_test} = require("./lib/test.cjs");
 const blueslip = require("./lib/zblueslip.cjs");
@@ -542,52 +543,11 @@ run_test("get_realm_user_groups_for_dropdown_list_widget", ({override}) => {
         direct_subgroup_ids: new Set([4, 5]),
     };
 
-    override(realm, "server_supported_permission_settings", {
-        stream: {
-            can_administer_channel_group: {
-                require_system_group: true,
-                allow_internet_group: false,
-                allow_owners_group: true,
-                allow_nobody_group: true,
-                allow_everyone_group: false,
-                default_group_name: "stream_creator_or_nobody",
-                id_field_name: "can_administer_channel_group_id",
-                allowed_system_groups: [],
-            },
-            can_remove_subscribers_group: {
-                require_system_group: true,
-                allow_internet_group: false,
-                allow_owners_group: false,
-                allow_nobody_group: false,
-                allow_everyone_group: true,
-                default_group_name: "role:administrators",
-                id_field_name: "can_remove_subscribers_group_id",
-                allowed_system_groups: [],
-            },
-        },
-        realm: {
-            create_multiuse_invite_group: {
-                require_system_group: true,
-                allow_internet_group: false,
-                allow_owners_group: false,
-                allow_nobody_group: true,
-                allow_everyone_group: false,
-                default_group_name: "role:administrators",
-                id_field_name: "create_multiuse_invite_group_id",
-                allowed_system_groups: [],
-            },
-            can_access_all_users_group: {
-                require_system_group: true,
-                allow_internet_group: false,
-                allow_owners_group: false,
-                allow_nobody_group: false,
-                allow_everyone_group: true,
-                default_group_name: "role:everyone",
-                id_field_name: "can_access_all_users_group_id",
-                allowed_system_groups: ["role:everyone", "role:members"],
-            },
-        },
-    });
+    override(
+        realm,
+        "server_supported_permission_settings",
+        example_settings.server_supported_permission_settings,
+    );
 
     let expected_groups_list = [
         {name: "translated: Admins, moderators, members and guests", unique_id: 6},
@@ -595,6 +555,7 @@ run_test("get_realm_user_groups_for_dropdown_list_widget", ({override}) => {
         {name: "translated: Admins, moderators and full members", unique_id: 7},
         {name: "translated: Admins and moderators", unique_id: 4},
         {name: "translated: Admins", unique_id: 3},
+        {name: "translated: Owners", unique_id: 2},
     ];
 
     user_groups.initialize({
