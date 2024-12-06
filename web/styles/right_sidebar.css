@@ -8,7 +8,6 @@ $user_status_emoji_width: 24px;
 }
 
 .right-sidebar-items {
-    padding-right: var(--right-sidebar-padding-right);
     padding-left: var(--right-sidebar-padding-left);
 }
 
@@ -461,7 +460,10 @@ $user_status_emoji_width: 24px;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     margin-bottom: 10px;
-    margin-left: 5px;
+    margin-left: var(--right-sidebar-heading-left-spacing);
+    /* The scrollbar doesn't extend this high, but we want the three-dot
+       menus to line up. */
+    margin-right: var(--width-simplebar-scroll-hover);
 
     #userlist-header-search {
         display: grid;
@@ -529,13 +531,27 @@ $user_status_emoji_width: 24px;
         color: var(--color-text-sidebar-action-heading-hover);
     }
 
-    .buddy-list-user-link-text,
-    .invite-user-link {
+    .right-sidebar-wrappable-text-container {
         display: grid;
-        grid-template-rows: var(--line-height-sidebar-row-prominent);
-        text-decoration: none;
+        grid-template-rows: minmax(
+            var(--line-height-sidebar-row-prominent),
+            auto
+        );
         align-items: center;
         color: var(--color-text-sidebar-action-heading);
+
+        .right-sidebar-wrappable-text-inner {
+            margin: var(--spacing-top-bottom-sidebar-topic-inner) 0;
+            line-height: 1;
+            text-decoration: none;
+            font-size: var(--font-size-sidebar-action-heading);
+            font-weight: var(--font-weight-sidebar-action-heading);
+            font-variant: var(--font-variant-sidebar-action-heading);
+            font-feature-settings: var(
+                --font-feature-settings-sidebar-action-heading
+            );
+        }
+        text-transform: var(--text-transform-sidebar-action-heading);
     }
 }
 
@@ -559,6 +575,8 @@ $user_status_emoji_width: 24px;
 
         .zulip-icon-user-plus {
             justify-self: center;
+            /* Smaller icon size to align the link text with the other buddy list links */
+            font-size: 13px;
         }
     }
 }

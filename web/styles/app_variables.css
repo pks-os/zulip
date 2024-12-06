@@ -275,8 +275,11 @@
     );
     --right-sidebar-left-spacing: 5px;
     /* Used in both left and right sidebar at the bottom, to allow
-       the user to scroll past the bottom-most elements a little bit. */
-    --sidebar-bottom-spacing: 1.4286em; /* 20px / 14px  em */
+       the user to scroll past the bottom-most elements a little bit.
+
+       Value is chosen to avoid elements overlapping with the browser's URL
+       display when hovering links, and should not scale with font size. */
+    --sidebar-bottom-spacing: 25px;
 
     /* We base sidebar row heights on their line heights.
        Prominent rows include things like headers (e.g., VIEWS)
@@ -298,11 +301,11 @@
     );
 
     /* Right sidebar */
-    --right-sidebar-padding-right: 8px;
     /* Vlad's design adds 2px of extra padding beyond the
        space created by the padding-left on .right-sidebar,
        which separates the right sidebar from the message area. */
     --right-sidebar-padding-left: 2px;
+    --right-sidebar-heading-left-spacing: 5px;
     --right-sidebar-avatar-width: 2em;
     --right-sidebar-avatar-height: var(--right-sidebar-avatar-width);
 
@@ -609,6 +612,7 @@
     --color-unread-marker: hsl(217deg 64% 59%);
     --color-masked-unread-marker: hsl(0deg 0% 80%);
     --color-failed-message-send-icon: hsl(3.88deg 98.84% 66.27%);
+    --color-active-row-modal: hsl(0deg 0% 98%);
     --color-background-modal: #ededed;
     --color-background-modal-bar: #f5f5f5;
     --color-border-modal: color-mix(in srgb, #8c8c8c 25%, transparent);
@@ -1367,6 +1371,7 @@
     --color-navbar-bottom-border: hsl(0deg 0% 0% / 60%);
     --color-unread-marker: hsl(217deg 64% 59%);
     --color-masked-unread-marker: hsl(0deg 0% 30%);
+    --color-active-row-modal: hsl(0deg 0% 0% / 20%);
     --color-background-modal: #242424;
     --color-background-modal-bar: #333;
     --color-border-modal: color-mix(in srgb, #fff 8%, transparent);
