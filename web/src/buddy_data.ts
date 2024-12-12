@@ -232,16 +232,15 @@ export function info_for(user_id: number): BuddyUserInfo {
     };
 }
 
-export function get_title_data(
-    user_ids_string: string,
-    is_group: boolean,
-): {
+export type TitleData = {
     first_line: string;
     second_line: string | undefined;
     third_line: string;
     show_you?: boolean;
     is_deactivated?: boolean;
-} {
+};
+
+export function get_title_data(user_ids_string: string, is_group: boolean): TitleData {
     if (is_group) {
         // For groups, just return a string with recipient names.
         return {
@@ -433,7 +432,7 @@ function get_filtered_user_id_list(
 
         // We want to always show PM recipients even if they're inactive.
         const pm_ids_set = narrow_state.pm_ids_set();
-        if (pm_ids_set.size) {
+        if (pm_ids_set.size > 0) {
             const base_user_id_set = new Set([...base_user_id_list, ...pm_ids_set]);
             base_user_id_list = [...base_user_id_set];
         }

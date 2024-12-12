@@ -196,7 +196,7 @@ function set_oldest_message_date(msg_list_data: MessageListData): void {
     // We might be loading messages in another narrow before the recent view
     // is shown, so we keep the state updated and update the banner only
     // once it's actually rendered.
-    if ($("#recent-view-content-tbody tr").length) {
+    if ($("#recent-view-content-tbody tr").length > 0) {
         update_load_more_banner();
     }
 }
@@ -496,11 +496,7 @@ function message_to_conversation_unread_count(msg: Message): number {
     return unread.num_unread_for_topic(msg.stream_id, msg.topic);
 }
 
-export function get_pm_tooltip_data(user_ids_string: string): {
-    first_line: string;
-    second_line: string;
-    third_line?: string;
-} {
+export function get_pm_tooltip_data(user_ids_string: string): buddy_data.TitleData {
     const user_id = Number.parseInt(user_ids_string, 10);
     const person = people.get_by_user_id(user_id);
 
@@ -516,6 +512,7 @@ export function get_pm_tooltip_data(user_ids_string: string): {
             return {
                 first_line: person.full_name,
                 second_line: bot_owner_name,
+                third_line: "",
             };
         }
 
@@ -1579,7 +1576,7 @@ export function change_focused_element($elt: JQuery, input_key: string): boolean
                 $current_focus_elem = $(post_tab_focus_elem);
             }
 
-            if ($(post_tab_focus_elem).parents("#recent-view-content-table").length) {
+            if ($(post_tab_focus_elem).parents("#recent-view-content-table").length > 0) {
                 $current_focus_elem = "table";
                 const topic_row_index = $(post_tab_focus_elem).closest("tr").index();
                 const col_index = $(post_tab_focus_elem)

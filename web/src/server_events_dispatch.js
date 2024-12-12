@@ -86,7 +86,7 @@ import * as theme from "./theme.ts";
 import * as typing_events from "./typing_events.ts";
 import * as unread_ops from "./unread_ops.ts";
 import * as unread_ui from "./unread_ui.ts";
-import * as user_events from "./user_events.js";
+import * as user_events from "./user_events.ts";
 import * as user_group_edit from "./user_group_edit.ts";
 import * as user_groups from "./user_groups.ts";
 import {user_settings} from "./user_settings.ts";
@@ -157,7 +157,7 @@ export function dispatch_normal_event(event) {
             break;
 
         case "invites_changed":
-            if ($("#admin-invites-list").length) {
+            if ($("#admin-invites-list").length > 0) {
                 settings_invites.set_up(false);
             }
             break;
