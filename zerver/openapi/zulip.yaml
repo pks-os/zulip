@@ -1564,18 +1564,11 @@ paths:
                                     emoji_name: {}
                                     reaction_type: {}
                                     user_id: {}
-                                    user: {}
                                   example:
                                     {
                                       "type": "reaction",
                                       "op": "add",
                                       "user_id": 10,
-                                      "user":
-                                        {
-                                          "user_id": 10,
-                                          "email": "user10@zulip.testserver",
-                                          "full_name": "King Hamlet",
-                                        },
                                       "message_id": 32,
                                       "emoji_name": "tada",
                                       "emoji_code": "1f389",
@@ -1610,18 +1603,11 @@ paths:
                                     emoji_name: {}
                                     reaction_type: {}
                                     user_id: {}
-                                    user: {}
                                   example:
                                     {
                                       "type": "reaction",
                                       "op": "remove",
                                       "user_id": 10,
-                                      "user":
-                                        {
-                                          "user_id": 10,
-                                          "email": "user10@zulip.testserver",
-                                          "full_name": "King Hamlet",
-                                        },
                                       "message_id": 52,
                                       "emoji_name": "tada",
                                       "emoji_code": "1f389",
@@ -8722,7 +8708,7 @@ paths:
       summary: Upload a file
       tags: ["messages"]
       description: |
-        Upload a single file and get the corresponding URL.
+        [Upload](/help/share-and-upload-files) a single file and get the corresponding URL.
 
         Initially, only you will be able to access the link. To share the
         uploaded file, you'll need to [send a message][send-message]
@@ -8730,26 +8716,29 @@ paths:
         can reshare it with other users by sending additional Zulip messages
         containing the link.
 
-        For uploading larger files, `/api/v1/tus` is an endpoint
-        implementing the [`tus`
-        protocol](https://tus.io/protocols/resumable-upload) for
-        resumable uploads. Clients which send authenticated
-        credentials (either via browser-based cookies, or API key via
-        `Authorization` header) may use this endpoint to create
-        uploads.
+        The maximum allowed file size is available in the `max_file_upload_size_mib`
+        field in the [`POST /register`](/api/register-queue) response. Note that
+        large files (25MB+) may fail to upload using this API endpoint due to
+        network-layer timeouts, depending on the quality of your connection to the
+        Zulip server.
+
+        For uploading larger files, `/api/v1/tus` is an endpoint implementing the
+        [`tus` resumable upload protocol](https://tus.io/protocols/resumable-upload),
+        which supports uploading arbitrarily large files limited only by the server's
+        `max_file_upload_size_mib` (Configured via `MAX_FILE_UPLOAD_SIZE` in
+        `/etc/zulip/settings.py`). Clients which send authenticated credentials
+        (either via browser-based cookies, or API key via `Authorization` header) may
+        use this endpoint to upload files.
+
+        **Changes**: The `api/v1/tus` endpoint supporting resumable uploads was
+        introduced in Zulip 10.0 (feature level 296). Previously,
+        `max_file_upload_size_mib` was typically 25MB.
 
         [uploaded-files]: /help/manage-your-uploaded-files
         [send-message]: /api/send-message
       x-parameter-description: |
         As described above, the file to upload must be provided in the
         request's body.
-
-        ## Maximum file size
-
-        The maximum file size for uploads can be configured by the
-        administrator of the Zulip server by setting `MAX_FILE_UPLOAD_SIZE`
-        in the [server's settings][1]. `MAX_FILE_UPLOAD_SIZE` defaults
-        to 100MB.
 
         [1]: https://zulip.readthedocs.io/en/latest/subsystems/settings.html#server-settings
       requestBody:
@@ -11877,6 +11866,14 @@ paths:
                     only options to disable sending typing notifications.
                   type: boolean
                   example: true
+                web_suggest_update_timezone:
+                  description: |
+                    Whether the user should be shown an alert offering to update their profile time zone
+                    to the time zone of the browser in case they differ.
+
+                    **Changes**: New in Zulip 10.0 (feature level 329).
+                  type: boolean
+                  example: true
                 fluid_layout_width:
                   description: |
                     Whether to use the [maximum available screen width](/help/enable-full-width-display)
@@ -12366,6 +12363,8 @@ paths:
               starred_message_counts:
                 contentType: application/json
               receives_typing_notifications:
+                contentType: application/json
+              web_suggest_update_timezone:
                 contentType: application/json
               fluid_layout_width:
                 contentType: application/json
@@ -15211,6 +15210,13 @@ paths:
 
                               **Changes**: New in Zulip 9.0 (feature level 253). Previously, there were
                               only options to disable sending typing notifications.
+                          web_suggest_update_timezone:
+                            type: boolean
+                            description: |
+                              Whether the user should be shown an alert offering to update their profile time zone
+                              to the time zone of the browser in case they differ.
+
+                              **Changes**: New in Zulip 10.0 (feature level 329).
                           fluid_layout_width:
                             type: boolean
                             description: |
@@ -16319,6 +16325,13 @@ paths:
 
                           **Changes**: New in Zulip 9.0 (feature level 253). Previously, there were
                           only options to disable sending typing notifications.
+                      web_suggest_update_timezone:
+                        type: boolean
+                        description: |
+                          Whether the user should be shown an alert offering to update their profile time zone
+                          to the time zone of the browser in case they differ.
+
+                          **Changes**: New in Zulip 10.0 (feature level 329).
                       enter_sends:
                         deprecated: true
                         type: boolean
@@ -17735,6 +17748,13 @@ paths:
 
                               **Changes**: New in Zulip 9.0 (feature level 253). Previously, there were
                               only options to disable sending typing notifications.
+                          web_suggest_update_timezone:
+                            type: boolean
+                            description: |
+                              Whether the user should be shown an alert offering to update their profile time zone
+                              to the time zone of the browser in case they differ.
+
+                              **Changes**: New in Zulip 10.0 (feature level 329).
                           fluid_layout_width:
                             type: boolean
                             description: |
@@ -18890,6 +18910,14 @@ paths:
                     options to disable sending typing notifications.
                   type: boolean
                   example: true
+                web_suggest_update_timezone:
+                  type: boolean
+                  description: |
+                    Whether the user should be shown an alert offering to update their profile time zone
+                    to the time zone of the browser in case they differ.
+
+                    **Changes**: New in Zulip 10.0 (feature level 329).
+                  example: true
                 fluid_layout_width:
                   description: |
                     Whether to use the [maximum available screen width](/help/enable-full-width-display)
@@ -19480,6 +19508,8 @@ paths:
               starred_message_counts:
                 contentType: application/json
               receives_typing_notifications:
+                contentType: application/json
+              web_suggest_update_timezone:
                 contentType: application/json
               fluid_layout_width:
                 contentType: application/json
@@ -23178,41 +23208,10 @@ components:
 
                 **Changes**: New in Zulip 3.0 (feature level 2). The `user`
                 object is deprecated and will be removed in the future.
-            user:
-              type: object
-              additionalProperties: false
-              deprecated: true
-              description: |
-                Dictionary with data on the user who added the
-                reaction, including the user ID as the `id`
-                field. Note that reactions data received from the
-                [events API](/api/get-events) has a slightly different
-                `user` dictionary format, with the user ID field
-                called `user_id` instead.
 
-                **Changes**: Deprecated and to be removed in a future release
-                once core clients have migrated to use the adjacent `user_id`
-                field, which was introduced in Zulip 3.0 (feature level 2).
-                Clients supporting older Zulip server versions should use
-                the user ID mentioned in the description above as they would
-                the `user_id` field.
-              properties:
-                id:
-                  type: integer
-                  description: |
-                    ID of the user.
-                email:
-                  type: string
-                  description: |
-                    Zulip API email of the user.
-                full_name:
-                  type: string
-                  description: |
-                    Full name of the user.
-                is_mirror_dummy:
-                  type: boolean
-                  description: |
-                    Whether the user is a mirror dummy.
+                In Zulip 10.0 (feature level 328), the deprecated `user` object
+                was removed which contained the following properties: `id`, `email`,
+                `full_name` and `is_mirror_dummy`.
     EmojiBase:
       type: object
       properties:
@@ -23258,38 +23257,10 @@ components:
 
                 **Changes**: New in Zulip 3.0 (feature level 2). The `user`
                 object is deprecated and will be removed in the future.
-            user:
-              type: object
-              additionalProperties: false
-              deprecated: true
-              description: |
-                Dictionary with data on the user who added the
-                reaction, including the user ID as the `user_id`
-                field.
 
-                **Changes**: Deprecated and to be removed in a future release
-                once core clients have migrated to use the adjacent `user_id`
-                field, which was introduced in Zulip 3.0 (feature level 2).
-                Clients supporting older Zulip server versions should use
-                the user ID mentioned in the description above as they would
-                the `user_id` field.
-              properties:
-                user_id:
-                  type: integer
-                  description: |
-                    ID of the user.
-                email:
-                  type: string
-                  description: |
-                    Zulip API email of the user.
-                full_name:
-                  type: string
-                  description: |
-                    Full name of the user.
-                is_mirror_dummy:
-                  type: boolean
-                  description: |
-                    Whether the user is a mirror dummy.
+                In Zulip 10.0 (feature level 328), the deprecated `user` object
+                was removed which contained the following properties: `user_id`,
+                `email`, `full_name` and `is_mirror_dummy`.
     MessagesEvent:
       allOf:
         - $ref: "#/components/schemas/MessagesBase"
