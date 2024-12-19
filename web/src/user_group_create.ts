@@ -119,7 +119,7 @@ $("body").on("click", ".settings-sticky-footer #user_group_go_to_members", (e) =
             is_any_group_widget_pending = true;
             // We are not appending any value here, but instead this is
             // a proxy to invoke the error state for a group widget
-            // that would usually get triggered on clicking enter.
+            // that would usually get triggered on pressing enter.
             widget.appendValue(widget.getCurrentText()!);
             break;
         }
@@ -239,6 +239,18 @@ export function set_up_handlers(): void {
         const subgroups = user_group_create_members_data.get_subgroups();
         if (principals.length === 0 && subgroups.length === 0) {
             user_group_membership_error.report_no_members_to_user_group();
+            return;
+        }
+
+        assert(user_group_create_members.pill_widget !== undefined);
+        assert(user_group_create_members.pill_widget !== null);
+        if (user_group_create_members.pill_widget.is_pending()) {
+            // We are not appending any value here, but instead this is
+            // a proxy to invoke the error state for a group widget
+            // that would usually get triggered on pressing enter.
+            user_group_create_members.pill_widget.appendValue(
+                user_group_create_members.pill_widget.getCurrentText()!,
+            );
             return;
         }
 
