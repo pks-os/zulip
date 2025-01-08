@@ -86,6 +86,17 @@ export function update_property<P extends keyof UpdatableStreamProperties>(
         return;
     }
 
+    const deprecated_properties = ["is_announcement_only", "stream_post_policy"];
+    if (deprecated_properties.includes(property)) {
+        // Server sends events for updating "is_announcement_only" and
+        // "stream_post_policy" properties which are still used by
+        // legacy API clients. Since we do not have any client capabilities
+        // to control which clients should receive these events, these
+        // events are sent to all clients and we just do nothing on
+        // receiving events for these properties.
+        return;
+    }
+
     if (Object.keys(realm.server_supported_permission_settings.stream).includes(property)) {
         stream_settings_ui.update_stream_permission_group_setting(
             stream_permission_group_settings_schema.parse(property),
@@ -149,9 +160,6 @@ export function update_property<P extends keyof UpdatableStreamProperties>(
                 is_web_public: other_values.is_web_public,
             });
             compose_recipient.on_compose_select_recipient_update();
-        },
-        stream_post_policy(value) {
-            stream_settings_ui.update_stream_post_policy(sub, value);
         },
         message_retention_days(value) {
             stream_settings_ui.update_message_retention_setting(sub, value);

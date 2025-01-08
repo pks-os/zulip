@@ -2119,6 +2119,17 @@ paths:
                                     Only present if `message_type` is `"stream"`.
 
                                     The topic to which the message was sent.
+
+                                    For clients that don't support the `empty_topic_name` [client capability][client-capabilities],
+                                    if the actual topic name was empty string, this field's value will instead
+                                    be the value of `realm_empty_topic_display_name` found in the
+                                    [`POST /register`](/api/register-queue) response.
+
+                                    **Changes**: Before 10.0 (feature level 334), `empty_topic_name`
+                                    client capability didn't exist and empty string as the topic name for
+                                    channel messages wasn't allowed.
+
+                                    [client-capabilities]: /api/register-queue#parameter-client_capabilities
                               example:
                                 {
                                   "type": "delete_message",
@@ -2196,6 +2207,17 @@ paths:
                                   type: string
                                   description: |
                                     The name of the topic.
+
+                                    For clients that don't support the `empty_topic_name` [client capability][client-capabilities],
+                                    if the actual topic name is empty string, this field's value will instead
+                                    be the value of `realm_empty_topic_display_name` found in the
+                                    [`POST /register`](/api/register-queue) response.
+
+                                    **Changes**: Before 10.0 (feature level 334), `empty_topic_name`
+                                    client capability didn't exist and empty string as the topic name for
+                                    channel messages wasn't allowed.
+
+                                    [client-capabilities]: /api/register-queue#parameter-client_capabilities
                                 last_updated:
                                   type: integer
                                   description: |
@@ -2515,6 +2537,17 @@ paths:
 
                                     The pre-edit topic for all of the messages with IDs in
                                     `message_ids`.
+
+                                    For clients that don't support the `empty_topic_name` [client capability][client-capabilities],
+                                    if the actual pre-edit topic name is empty string, this field's value will instead
+                                    be the value of `realm_empty_topic_display_name` found in the
+                                    [`POST /register`](/api/register-queue) response.
+
+                                    **Changes**: Before 10.0 (feature level 334), `empty_topic_name`
+                                    client capability didn't exist and empty string as the topic name for
+                                    channel messages wasn't allowed.
+
+                                    [client-capabilities]: /api/register-queue#parameter-client_capabilities
                                 subject:
                                   type: string
                                   description: |
@@ -2524,6 +2557,17 @@ paths:
 
                                     The post-edit topic for all of the messages with IDs in
                                     `message_ids`.
+
+                                    For clients that don't support the `empty_topic_name` [client capability][client-capabilities],
+                                    if the actual post-edit topic name is empty string, this field's value will instead
+                                    be the value of `realm_empty_topic_display_name` found in the
+                                    [`POST /register`](/api/register-queue) response.
+
+                                    **Changes**: Before 10.0 (feature level 334), `empty_topic_name`
+                                    client capability didn't exist and empty string as the topic name for
+                                    channel messages wasn't allowed.
+
+                                    [client-capabilities]: /api/register-queue#parameter-client_capabilities
                                 topic_links:
                                   type: array
                                   items:
@@ -2724,8 +2768,19 @@ paths:
 
                                     Topic within the channel where the message is being typed.
 
-                                    **Changes**: New in Zulip 4.0 (feature level 58). Previously,
-                                    typing notifications were only for direct messages.
+                                    For clients that don't support the `empty_topic_name` [client capability][client-capabilities],
+                                    if the actual topic name is empty string, this field's value will instead
+                                    be the value of `realm_empty_topic_display_name` found in the
+                                    [`POST /register`](/api/register-queue) response.
+
+                                    **Changes**: Before 10.0 (feature level 334), `empty_topic_name`
+                                    client capability didn't exist and empty string as the topic name for
+                                    channel messages wasn't allowed.
+
+                                    New in Zulip 4.0 (feature level 58). Previously, typing notifications
+                                    were only for direct messages.
+
+                                    [client-capabilities]: /api/register-queue#parameter-client_capabilities
                               example:
                                 {
                                   "type": "typing",
@@ -3074,6 +3129,17 @@ paths:
                                           Present only if `type` is `"stream"`.
 
                                           Name of the topic where the message was sent.
+
+                                          For clients that don't support the `empty_topic_name` [client capability][client-capabilities],
+                                          if the actual topic name is empty string, this field's value will instead
+                                          be the value of `realm_empty_topic_display_name` found in the
+                                          [`POST /register`](/api/register-queue) response.
+
+                                          **Changes**: Before 10.0 (feature level 334), `empty_topic_name`
+                                          client capability didn't exist and empty string as the topic name for
+                                          channel messages wasn't allowed.
+
+                                          [client-capabilities]: /api/register-queue#parameter-client_capabilities
                                       unmuted_stream_msg:
                                         type: boolean
                                         deprecated: true
@@ -5623,6 +5689,13 @@ paths:
                 topic_name:
                   description: |
                     The name of the topic whose messages should be marked as read.
+
+                    Note: When the value of `realm_empty_topic_display_name` found in
+                    the [POST /register](/api/register-queue) response is used for this
+                    parameter, it is interpreted as an empty string.
+
+                    **Changes**: Before Zulip 10.0 (feature level 334), empty string
+                    was not a valid topic name for channel messages.
                   type: string
                   example: new coffee machine
               required:
@@ -6808,6 +6881,22 @@ paths:
                 items:
                   type: integer
               example: [1, 2, 3]
+        - name: allow_empty_topic_name
+          in: query
+          description: |
+            Whether the client supports processing the empty string as a topic in the
+            topic name fields in the returned data, including in returned edit_history data.
+
+            If `false`, the server will use the value of `realm_empty_topic_display_name`
+            found in the [`POST /register`](/api/register-queue) response instead of empty string
+            to represent the empty string topic in its response.
+
+            **Changes**: New in Zulip 10.0 (feature level 334). Previously, the empty string
+            was not a valid topic.
+          schema:
+            type: boolean
+            default: false
+          example: true
       responses:
         "200":
           description: Success.
@@ -7067,7 +7156,14 @@ paths:
                     [`POST /register`](/api/register-queue) endpoint to determine
                     the maximum topic length.
 
-                    **Changes**: New in Zulip 2.0.0. Previous Zulip releases encoded
+                    Note: When the value of `realm_empty_topic_display_name` found in
+                    the [POST /register](/api/register-queue) response is used for this
+                    parameter, it is interpreted as an empty string.
+
+                    **Changes**: Before Zulip 10.0 (feature level 334), empty string
+                    was not a valid topic name for channel messages.
+
+                    New in Zulip 2.0.0. Previous Zulip releases encoded
                     this as `subject`, which is currently a deprecated alias.
                   type: string
                   example: Castle
@@ -7232,6 +7328,21 @@ paths:
         [edit-settings]: /help/view-a-messages-edit-history
       parameters:
         - $ref: "#/components/parameters/MessageId"
+        - name: allow_empty_topic_name
+          in: query
+          description: |
+            Whether the topic names i.e. `topic` and `prev_topic` fields in
+            the `message_history` objects returned can be empty string.
+
+            If `false`, the value of `realm_empty_topic_display_name`
+            found in the [`POST /register`](/api/register-queue) response is
+            returned replacing the empty string as the topic name.
+
+            **Changes**: New in Zulip 10.0 (feature level 334).
+          schema:
+            type: boolean
+            default: false
+          example: true
       x-response-description: |
         Please note that the original message's snapshot only contains the fields
         `topic`, `content`, `rendered_content`, `timestamp` and `user_id`. This
@@ -8133,6 +8244,22 @@ paths:
             type: boolean
             default: true
           example: false
+        - name: allow_empty_topic_name
+          in: query
+          description: |
+            Whether the client supports processing the empty string as a topic in the
+            topic name fields in the returned data, including in returned edit_history data.
+
+            If `false`, the server will use the value of `realm_empty_topic_display_name`
+            found in the [`POST /register`](/api/register-queue) response instead of empty string
+            to represent the empty string topic in its response.
+
+            **Changes**: New in Zulip 10.0 (feature level 334). Previously, the empty string
+            was not a valid topic.
+          schema:
+            type: boolean
+            default: false
+          example: true
       responses:
         "200":
           description: Success.
@@ -8370,8 +8497,15 @@ paths:
                     Should only be sent when changing the topic, and will throw an error
                     if the target message is not a channel message.
 
-                    **Changes**: New in Zulip 2.0.0. Previous Zulip releases encoded
-                    this as `subject`, which is currently a deprecated alias.
+                    Note: When the value of `realm_empty_topic_display_name` found in
+                    the [POST /register](/api/register-queue) response is used for this
+                    parameter, it is interpreted as an empty string.
+
+                    **Changes**: Before Zulip 10.0 (feature level 334), empty string
+                    was not a valid topic name for channel messages.
+
+                    New in Zulip 2.0.0. Previous Zulip releases encoded this as `subject`,
+                    which is currently a deprecated alias.
                   type: string
                   example: Castle
                 propagate_mode:
@@ -8566,7 +8700,7 @@ paths:
                           a target message ID of `first_message_id_allowed_to_move`, if the user
                           desires to move only the portion of the topic that they can.
 
-                          Note that in a channel with [protected history](/help/channel-permissions),
+                          Note that in a [private channel with protected history][private-channels],
                           the Zulip security model requires that the above calculations only include
                           messages the acting user has access to. So in the rare case of a user
                           attempting to move a topic that started before the user joined a private
@@ -8575,6 +8709,8 @@ paths:
                           dialog.
 
                           **Changes**: New in Zulip 7.0 (feature level 172).
+
+                          [private-channels]: /help/channel-permissions#private-channels
                   - allOf:
                       - $ref: "#/components/schemas/CodedError"
                       - example:
@@ -10049,12 +10185,13 @@ paths:
       description: |
         Get all topics the user has access to in a specific channel.
 
-        Note that for private channels with [protected
-        history](/help/channel-permissions), the user will only have access to
-        topics of messages sent after they [subscribed to](/api/subscribe) the
-        channel. Similarly, a user's [bot](/help/bots-overview#bot-type)
-        will only have access to messages sent after the bot was subscribed to
-        the channel, instead of when the user subscribed.
+        Note that for [private channels with
+        protected history](/help/channel-permissions#private-channels),
+        the user will only have access to topics of messages sent after they
+        [subscribed to](/api/subscribe) the channel. Similarly, a user's
+        [bot](/help/bots-overview#bot-type) will only have access to messages
+        sent after the bot was subscribed to the channel, instead of when the
+        user subscribed.
       parameters:
         - $ref: "#/components/parameters/ChannelIdInPath"
       responses:
@@ -10212,15 +10349,19 @@ paths:
         by the optional parameters, like `invite_only`, detailed below.
 
         Note that the ability to subscribe oneself and/or other users to a specified
-        channel depends on the [channel's privacy settings](/help/channel-permissions).
+        channel depends on the [channel's type: private, public, or
+        web-public](/help/channel-permissions).
 
-        **Changes**: Before Zulip 8.0 (feature level 208), if a user
-        specified by the [`principals`][principals-param] parameter was
-        a deactivated user, or did not exist, then an HTTP status code
-        of 403 was returned with `code: "UNAUTHORIZED_PRINCIPAL"` in the
-        error response. As of this feature level, an HTTP status code of
-        400 is returned with `code: "BAD_REQUEST"` in the error response
-        for these cases.
+        **Changes**: Removed `stream_post_policy` and `is_announcement_only`
+        parameters in Zulip 10.0 (feature level 333), as permission to post
+        in the channel is now controlled by `can_send_message_group`.
+
+        Before Zulip 8.0 (feature level 208), if a user specified by the
+        [`principals`][principals-param] parameter was a deactivated user,
+        or did not exist, then an HTTP status code of 403 was returned with
+        `code: "UNAUTHORIZED_PRINCIPAL"` in the error response. As of this
+        feature level, an HTTP status code of 400 is returned with
+        `code: "BAD_REQUEST"` in the error response for these cases.
 
         [principals-param]: /api/subscribe#parameter-principals
       x-curl-examples-parameters:
@@ -10347,14 +10488,14 @@ paths:
                   example: true
                 history_public_to_subscribers:
                   $ref: "#/components/schemas/HistoryPublicToSubscribers"
-                stream_post_policy:
-                  $ref: "#/components/schemas/ChannelPostPolicy"
                 message_retention_days:
                   $ref: "#/components/schemas/MessageRetentionDays"
                 can_remove_subscribers_group:
                   $ref: "#/components/schemas/CanRemoveSubscribersGroup"
                 can_administer_channel_group:
                   $ref: "#/components/schemas/CanAdministerChannelGroup"
+                can_send_message_group:
+                  $ref: "#/components/schemas/CanSendMessageGroup"
               required:
                 - subscriptions
             encoding:
@@ -10374,11 +10515,11 @@ paths:
                 contentType: application/json
               history_public_to_subscribers:
                 contentType: application/json
-              stream_post_policy:
-                contentType: application/json
               can_remove_subscribers_group:
                 contentType: application/json
               can_administer_channel_group:
+                contentType: application/json
+              can_send_message_group:
                 contentType: application/json
       responses:
         "200":
@@ -10862,6 +11003,13 @@ paths:
                     Clients should use the `max_topic_length` returned by the
                     [`POST /register`](/api/register-queue) endpoint to determine
                     the maximum topic length.
+
+                    Note: When the value of `realm_empty_topic_display_name` found in
+                    the [POST /register](/api/register-queue) response is used for this
+                    parameter, it is interpreted as an empty string.
+
+                    **Changes**: Before Zulip 10.0 (feature level 334), empty string
+                    was not a valid topic name for channel messages.
                   type: string
                   example: dinner
                 visibility_policy:
@@ -14131,6 +14279,16 @@ paths:
                       access archived channels, without breaking backwards-compatibility for
                       existing clients.
 
+                    - `empty_topic_name`: Boolean for whether the client supports processing
+                      the empty string as a topic name. Clients not declaring this capability
+                      will be sent the value of `realm_empty_topic_display_name` found in the
+                      [POST /register](/api/register-queue) response instead of the empty string
+                      wherever topic names appear in the register response or events involving
+                      topic names.
+                      <br/>
+                      **Changes**: New in Zulip 10.0 (feature level 334). Previously,
+                      the empty string was not a valid topic name.
+
                     [help-linkifiers]: /help/add-a-custom-linkifier
                     [rfc6570]: https://www.rfc-editor.org/rfc/rfc6570.html
                     [events-linkifiers]: /api/get-events#realm_linkifiers
@@ -14878,6 +15036,7 @@ paths:
                                 is_announcement_only: {}
                                 can_remove_subscribers_group: {}
                                 can_administer_channel_group: {}
+                                can_send_message_group: {}
                                 stream_weekly_traffic:
                                   type: integer
                                   nullable: true
@@ -14988,6 +15147,16 @@ paths:
                                   type: string
                                   description: |
                                     The topic under which the messages were sent.
+
+                                    Note that the empty string topic may have been rewritten by the server
+                                    to the value of `realm_empty_topic_display_name` found in the
+                                    [`POST /register`](/api/register-queue) response depending on the value
+                                    of the `empty_topic_name` [client capability][client-capabilities].
+
+                                    **Changes**: The `empty_topic_name` client capability is new in
+                                    Zulip 10.0 (feature level 334).
+
+                                    [client-capabilities]: /api/register-queue#parameter-client_capabilities
                                 stream_id:
                                   type: integer
                                   description: |
@@ -15611,6 +15780,15 @@ paths:
                               type: string
                               description: |
                                 The name of the topic.
+
+                                Note that the empty string topic may have been rewritten by the server to
+                                the value of `realm_empty_topic_display_name` found in the [`POST /register`](/api/register-queue)
+                                response depending on the value of the `empty_topic_name` [client capability][client-capabilities].
+
+                                **Changes**: The `empty_topic_name` client capability is new in
+                                Zulip 10.0 (feature level 334).
+
+                                [client-capabilities]: /api/register-queue#parameter-client_capabilities
                             last_updated:
                               type: integer
                               description: |
@@ -17671,6 +17849,21 @@ paths:
                           primarily relevant to clients containing UI for changing it.
 
                           **Changes**: New in Zulip 9.0 (feature level 242).
+                      realm_empty_topic_display_name:
+                        type: string
+                        description: |
+                          Present if `realm` is present in `fetch_event_types`.
+
+                          Clients declaring the `empty_topic_name` client capability
+                          should use the value of `realm_empty_topic_display_name` to
+                          determine how to display the empty string topic.
+
+                          Clients not declaring the `empty_topic_name` client capability
+                          receive `realm_empty_topic_display_name` value as the topic name
+                          replacing empty string.
+
+                          **Changes**: New in Zulip 10.0 (feature level 334). Previously,
+                          the empty string was not a valid topic name.
                       realm_user_settings_defaults:
                         type: object
                         additionalProperties: false
@@ -19758,6 +19951,7 @@ paths:
                                 is_announcement_only: {}
                                 can_remove_subscribers_group: {}
                                 can_administer_channel_group: {}
+                                can_send_message_group: {}
                                 stream_weekly_traffic:
                                   type: integer
                                   nullable: true
@@ -19964,6 +20158,10 @@ paths:
         Note that an organization administrator's ability to change a
         [private channel's permissions](/help/channel-permissions#private-channels)
         depends on them being subscribed to the channel.
+
+        **Changes**: Removed `stream_post_policy` and `is_announcement_only`
+        parameters in Zulip 10.0 (feature level 333), as permission to post
+        in the channel is now controlled by `can_send_message_group`.
       x-curl-examples-parameters:
         oneOf:
           - type: include
@@ -20011,15 +20209,6 @@ paths:
                     Change whether the channel is a private channel.
                   type: boolean
                   example: true
-                is_announcement_only:
-                  deprecated: true
-                  description: |
-                    Whether the channel is limited to announcements.
-
-                    **Changes**: Deprecated in Zulip 3.0 (feature level 1). Clients
-                    should use `stream_post_policy` instead.
-                  type: boolean
-                  example: true
                 is_web_public:
                   description: |
                     Change whether the channel is a web-public channel.
@@ -20042,8 +20231,8 @@ paths:
                     newly subscribed members, or users can only access messages
                     they actually received while subscribed to the channel.
 
-                    Corresponds to the [shared history](/help/channel-permissions)
-                    option in documentation.
+                    Corresponds to the shared history option for
+                    [private channels](/help/channel-permissions#private-channels).
 
                     It's an error for this parameter to be false for a public or
                     web-public channel and when is_private is false.
@@ -20064,95 +20253,84 @@ paths:
                     could only be changed using the [dedicated API endpoint](/api/add-default-stream).
                   type: boolean
                   example: false
-                stream_post_policy:
-                  $ref: "#/components/schemas/ChannelPostPolicy"
                 message_retention_days:
                   $ref: "#/components/schemas/MessageRetentionDays"
                 can_remove_subscribers_group:
-                  description: |
-                    The set of users who have permission to unsubscribe others from this
-                    channel expressed as an [update to a group-setting value][update-group-setting].
+                  allOf:
+                    - description: |
+                        The set of users who have permission to unsubscribe others from this
+                        channel expressed as an [update to a group-setting value][update-group-setting].
 
-                    Administrators can always unsubscribe others from a channel.
+                        Administrators can always unsubscribe others from a channel.
 
-                    Note that a user who is a member of the specified user group must
-                    also [have access](/help/channel-permissions) to the channel in
-                    order to unsubscribe others.
+                        Note that a user who is a member of the specified user group must
+                        also [have access](/help/channel-permissions) to the channel in
+                        order to unsubscribe others.
 
-                    **Changes**: Prior to Zulip 10.0 (feature level 320), this value was
-                    always the integer ID of a system group.
+                        **Changes**: Prior to Zulip 10.0 (feature level 320), this value was
+                        always the integer ID of a system group.
 
-                    Before Zulip 8.0 (feature level 197), the `can_remove_subscribers_group`
-                    setting was named `can_remove_subscribers_group_id`.
+                        Before Zulip 8.0 (feature level 197), the `can_remove_subscribers_group`
+                        setting was named `can_remove_subscribers_group_id`.
 
-                    New in Zulip 7.0 (feature level 161).
-                  type: object
-                  additionalProperties: false
-                  properties:
-                    new:
-                      allOf:
-                        - description: |
-                            The new [group-setting value](/api/group-setting-values) for who would
-                            have the permission to remove subscribers from the channel.
-                        - $ref: "#/components/schemas/GroupSettingValue"
-                    old:
-                      allOf:
-                        - description: |
-                            The expected current [group-setting value](/api/group-setting-values)
-                            for who has the permission to remove subscribers from the channel.
-                        - $ref: "#/components/schemas/GroupSettingValue"
-                  required:
-                    - new
-                  example:
-                    {
-                      "new": {"direct_members": [10], "direct_subgroups": [11]},
-                      "old": 15,
-                    }
+                        New in Zulip 7.0 (feature level 161).
+                      example:
+                        {
+                          "new":
+                            {"direct_members": [10], "direct_subgroups": [11]},
+                          "old": 15,
+                        }
+                    - $ref: "#/components/schemas/GroupSettingValueUpdate"
                 can_administer_channel_group:
-                  description: |
-                    The set of users who have permission to administer this channel
-                    expressed as an [update to a group-setting value][update-group-setting].
+                  allOf:
+                    - description: |
+                        The set of users who have permission to administer this channel
+                        expressed as an [update to a group-setting value][update-group-setting].
 
-                    Note that a user who is a member of the specified user group must
-                    also [have access](/help/channel-permissions) to the channel in
-                    order to administer the channel.
+                        Note that a user who is a member of the specified user group must
+                        also [have access](/help/channel-permissions) to the channel in
+                        order to administer the channel.
 
-                    Realm admins are allowed to administer a channel they have access to
-                    regardless of whether they are present in this group.
+                        Realm admins are allowed to administer a channel they have access to
+                        regardless of whether they are present in this group.
 
-                    Users in this group can edit channel name and description without
-                    subscribing to the channel, but they need to be subscribed to edit
-                    channel permissions and add users.
+                        Users in this group can edit channel name and description without
+                        subscribing to the channel, but they need to be subscribed to edit
+                        channel permissions and add users.
 
-                    **Changes**: New in Zulip 10.0 (feature level 325). Prior to this
-                    change, the permission to administer channels was limited to realm
-                    administrators.
-                  type: object
-                  additionalProperties: false
-                  properties:
-                    new:
-                      allOf:
-                        - description: |
-                            The new [group-setting value](/api/group-setting-values) for who would
-                            have the permission to administer this channel.
-                        - $ref: "#/components/schemas/CanAdministerChannelGroup"
-                    old:
-                      allOf:
-                        - description: |
-                            The expected current [group-setting value](/api/group-setting-values)
-                            for who has the permission to administer this channel.
-                        - $ref: "#/components/schemas/CanAdministerChannelGroup"
-                  required:
-                    - new
-                  example:
-                    {
-                      "new": {"direct_members": [10], "direct_subgroups": [11]},
-                      "old": 15,
-                    }
+                        **Changes**: New in Zulip 10.0 (feature level 325). Prior to this
+                        change, the permission to administer channels was limited to realm
+                        administrators.
+                      example:
+                        {
+                          "new":
+                            {"direct_members": [10], "direct_subgroups": [11]},
+                          "old": 15,
+                        }
+                    - $ref: "#/components/schemas/GroupSettingValueUpdate"
+                can_send_message_group:
+                  allOf:
+                    - description: |
+                        The set of users who have permission to post in this channel
+                        expressed as an [update to a group-setting value][update-group-setting].
+
+                        Note that a user who is a member of the specified user group must
+                        also [have access](/help/channel-permissions) to the channel in
+                        order to post in the channel.
+
+                        **Changes**: New in Zulip 10.0 (feature level 333). Previously
+                        `stream_post_policy` field used to control the permission to
+                        post in the channel.
+                      example:
+                        {
+                          "new":
+                            {"direct_members": [10], "direct_subgroups": [11]},
+                          "old": 15,
+                        }
+
+                    - $ref: "#/components/schemas/GroupSettingValueUpdate"
             encoding:
               is_private:
-                contentType: application/json
-              is_announcement_only:
                 contentType: application/json
               is_web_public:
                 contentType: application/json
@@ -20160,11 +20338,11 @@ paths:
                 contentType: application/json
               is_default_stream:
                 contentType: application/json
-              stream_post_policy:
-                contentType: application/json
               can_remove_subscribers_group:
                 contentType: application/json
               can_administer_channel_group:
+                contentType: application/json
+              can_send_message_group:
                 contentType: application/json
       responses:
         "200":
@@ -20299,6 +20477,13 @@ paths:
                 topic_name:
                   description: |
                     The name of the topic to delete.
+
+                    Note: When the value of `realm_empty_topic_display_name` found in
+                    the [POST /register](/api/register-queue) response is used for this
+                    parameter, it is interpreted as an empty string.
+
+                    **Changes**: Before Zulip 10.0 (feature level 334), empty string
+                    was not a valid topic name for channel messages.
                   type: string
                   example: new coffee machine
               required:
@@ -20488,8 +20673,15 @@ paths:
                     Topic to which message is being typed. Required for the `"stream"` or `"channel"`
                     type. Ignored in the case of `"direct"` type.
 
-                    **Changes**: New in Zulip 4.0 (feature level 58). Previously, typing
-                    notifications were only for direct messages.
+                    Note: When the value of `realm_empty_topic_display_name` found in
+                    the [POST /register](/api/register-queue) response is used for this
+                    parameter, it is interpreted as an empty string.
+
+                    **Changes**: Before Zulip 10.0 (feature level 334), empty string
+                    was not a valid topic name for channel messages.
+
+                    New in Zulip 4.0 (feature level 58). Previously, typing notifications
+                    were only for direct messages.
                   type: string
                   example: typing notifications
               required:
@@ -20849,214 +21041,130 @@ paths:
                   type: string
                   example: The marketing team.
                 can_add_members_group:
-                  description: |
-                    The set of users who have permission to add members to this user group
-                    expressed as an [update to a group-setting value][update-group-setting].
+                  allOf:
+                    - description: |
+                        The set of users who have permission to add members to this user group
+                        expressed as an [update to a group-setting value][update-group-setting].
 
-                    **Changes**: New in Zulip 10.0 (feature level 305). Previously, this
-                    permission was controlled by the `can_manage_group` setting.
+                        **Changes**: New in Zulip 10.0 (feature level 305). Previously, this
+                        permission was controlled by the `can_manage_group` setting.
 
-                    [update-group-setting]: /api/group-setting-values#updating-group-setting-values
-                    [system-groups]: /api/group-setting-values#system-groups
-                  type: object
-                  additionalProperties: false
-                  properties:
-                    new:
-                      allOf:
-                        - description: |
-                            The new [group-setting value](/api/group-setting-values) for the set of users
-                            who would have the permission to add members to the group.
-                        - $ref: "#/components/schemas/GroupSettingValue"
-                    old:
-                      allOf:
-                        - description: |
-                            The expected current [group-setting value](/api/group-setting-values)
-                            for the set of users who have the permission to add members to the group.
-                        - $ref: "#/components/schemas/GroupSettingValue"
-                  required:
-                    - new
-                  example:
-                    {
-                      "new": {"direct_members": [10], "direct_subgroups": [11]},
-                      "old": 11,
-                    }
+                        [update-group-setting]: /api/group-setting-values#updating-group-setting-values
+                        [system-groups]: /api/group-setting-values#system-groups
+                      example:
+                        {
+                          "new":
+                            {"direct_members": [10], "direct_subgroups": [11]},
+                          "old": 11,
+                        }
+                    - $ref: "#/components/schemas/GroupSettingValueUpdate"
                 can_join_group:
-                  description: |
-                    The set of users who have permission to join this user group
-                    expressed as an [update to a group-setting value][update-group-setting].
+                  allOf:
+                    - description: |
+                        The set of users who have permission to join this user group
+                        expressed as an [update to a group-setting value][update-group-setting].
 
-                    **Changes**: New in Zulip 10.0 (feature level 301).
+                        **Changes**: New in Zulip 10.0 (feature level 301).
 
-                    [update-group-setting]: /api/group-setting-values#updating-group-setting-values
-                    [system-groups]: /api/group-setting-values#system-groups
-                  type: object
-                  additionalProperties: false
-                  properties:
-                    new:
-                      allOf:
-                        - description: |
-                            The new [group-setting value](/api/group-setting-values) for who would
-                            have the permission to join the group.
-                        - $ref: "#/components/schemas/GroupSettingValue"
-                    old:
-                      allOf:
-                        - description: |
-                            The expected current [group-setting value](/api/group-setting-values)
-                            for who has the permission to join the group.
-                        - $ref: "#/components/schemas/GroupSettingValue"
-                  required:
-                    - new
-                  example:
-                    {
-                      "new": {"direct_members": [10], "direct_subgroups": [11]},
-                      "old": 11,
-                    }
+                        [update-group-setting]: /api/group-setting-values#updating-group-setting-values
+                        [system-groups]: /api/group-setting-values#system-groups
+                      example:
+                        {
+                          "new":
+                            {"direct_members": [10], "direct_subgroups": [11]},
+                          "old": 11,
+                        }
+                    - $ref: "#/components/schemas/GroupSettingValueUpdate"
                 can_leave_group:
-                  description: |
-                    The set of users who have permission to leave this user group
-                    expressed as an [update to a group-setting value][update-group-setting].
+                  allOf:
+                    - description: |
+                        The set of users who have permission to leave this user group
+                        expressed as an [update to a group-setting value][update-group-setting].
 
-                    **Changes**: New in Zulip 10.0 (feature level 308).
+                        **Changes**: New in Zulip 10.0 (feature level 308).
 
-                    [update-group-setting]: /api/group-setting-values#updating-group-setting-values
-                    [system-groups]: /api/group-setting-values#system-groups
-                  type: object
-                  additionalProperties: false
-                  properties:
-                    new:
-                      allOf:
-                        - description: |
-                            The new [group-setting value](/api/group-setting-values) for who would
-                            have the permission to leave the group.
-                        - $ref: "#/components/schemas/GroupSettingValue"
-                    old:
-                      allOf:
-                        - description: |
-                            The expected current [group-setting value](/api/group-setting-values)
-                            for who has the permission to leave the group.
-                        - $ref: "#/components/schemas/GroupSettingValue"
-                  required:
-                    - new
-                  example:
-                    {
-                      "new": {"direct_members": [10], "direct_subgroups": [11]},
-                      "old": 15,
-                    }
+                        [update-group-setting]: /api/group-setting-values#updating-group-setting-values
+                        [system-groups]: /api/group-setting-values#system-groups
+                      example:
+                        {
+                          "new":
+                            {"direct_members": [10], "direct_subgroups": [11]},
+                          "old": 15,
+                        }
+                    - $ref: "#/components/schemas/GroupSettingValueUpdate"
                 can_manage_group:
-                  description: |
-                    The set of users who have permission to [manage this user group][manage-user-groups]
-                    expressed as an [update to a group-setting value][update-group-setting].
+                  allOf:
+                    - description: |
+                        The set of users who have permission to [manage this user group][manage-user-groups]
+                        expressed as an [update to a group-setting value][update-group-setting].
 
-                    This setting cannot be set to `"role:internet"` and `"role:everyone"`
-                    [system groups][system-groups].
+                        This setting cannot be set to `"role:internet"` and `"role:everyone"`
+                        [system groups][system-groups].
 
-                    **Changes**: New in Zulip 10.0 (feature level 283).
+                        **Changes**: New in Zulip 10.0 (feature level 283).
 
-                    [update-group-setting]: /api/group-setting-values#updating-group-setting-values
-                    [system-groups]: /api/group-setting-values#system-groups
-                    [manage-user-groups]: /help/manage-user-groups
-                  type: object
-                  additionalProperties: false
-                  properties:
-                    new:
-                      allOf:
-                        - description: |
-                            The new [group-setting value](/api/group-setting-values) for who would
-                            have the permission to manage the group.
-                        - $ref: "#/components/schemas/GroupSettingValue"
-                    old:
-                      allOf:
-                        - description: |
-                            The expected current [group-setting value](/api/group-setting-values)
-                            for who has the permission to manage the group.
-                        - $ref: "#/components/schemas/GroupSettingValue"
-                  required:
-                    - new
-                  example:
-                    {
-                      "new": {"direct_members": [10], "direct_subgroups": [11]},
-                      "old": 11,
-                    }
+                        [update-group-setting]: /api/group-setting-values#updating-group-setting-values
+                        [system-groups]: /api/group-setting-values#system-groups
+                        [manage-user-groups]: /help/manage-user-groups
+                      example:
+                        {
+                          "new":
+                            {"direct_members": [10], "direct_subgroups": [11]},
+                          "old": 11,
+                        }
+                    - $ref: "#/components/schemas/GroupSettingValueUpdate"
                 can_mention_group:
-                  description: |
-                    The set of users who have permission to [mention this group][mentions],
-                    expressed as an [update to a group-setting value][update-group-setting].
+                  allOf:
+                    - description: |
+                        The set of users who have permission to [mention this group][mentions],
+                        expressed as an [update to a group-setting value][update-group-setting].
 
-                    This setting cannot be set to `"role:internet"` and `"role:owners"`
-                    [system groups][system-groups].
+                        This setting cannot be set to `"role:internet"` and `"role:owners"`
+                        [system groups][system-groups].
 
-                    **Changes**: In Zulip 9.0 (feature level 260), this parameter was
-                    updated to only accept an object with the `old` and `new` fields
-                    described below. Prior to this feature level, this parameter could be
-                    either of the two forms of a [group-setting value][setting-values].
+                        **Changes**: In Zulip 9.0 (feature level 260), this parameter was
+                        updated to only accept an object with the `old` and `new` fields
+                        described below. Prior to this feature level, this parameter could be
+                        either of the two forms of a [group-setting value][setting-values].
 
-                    Before Zulip 9.0 (feature level 258), this parameter could only be the
-                    integer form of a [group-setting value][setting-values].
+                        Before Zulip 9.0 (feature level 258), this parameter could only be the
+                        integer form of a [group-setting value][setting-values].
 
-                    Before Zulip 8.0 (feature level 198), this parameter was named
-                    `can_mention_group_id`.
+                        Before Zulip 8.0 (feature level 198), this parameter was named
+                        `can_mention_group_id`.
 
-                    New in Zulip 8.0 (feature level 191). Previously, groups could be
-                    mentioned only if they were not [system groups][system-groups].
+                        New in Zulip 8.0 (feature level 191). Previously, groups could be
+                        mentioned only if they were not [system groups][system-groups].
 
-                    [mentions]: /help/mention-a-user-or-group
-                    [update-group-setting]: /api/group-setting-values#updating-group-setting-values
-                    [system-groups]: /api/group-setting-values#system-groups
-                    [setting-values]: /api/group-setting-values
-                  type: object
-                  additionalProperties: false
-                  properties:
-                    new:
-                      allOf:
-                        - description: |
-                            The new [group-setting value](/api/group-setting-values) for who would
-                            have the permission to mention the group.
-                        - $ref: "#/components/schemas/GroupSettingValue"
-                    old:
-                      allOf:
-                        - description: |
-                            The expected current [group-setting value](/api/group-setting-values)
-                            for who has the permission to mention the group.
-                        - $ref: "#/components/schemas/GroupSettingValue"
-                  required:
-                    - new
-                  example:
-                    {
-                      "new": {"direct_members": [10], "direct_subgroups": [11]},
-                      "old": 11,
-                    }
+                        [mentions]: /help/mention-a-user-or-group
+                        [update-group-setting]: /api/group-setting-values#updating-group-setting-values
+                        [system-groups]: /api/group-setting-values#system-groups
+                        [setting-values]: /api/group-setting-values
+                      example:
+                        {
+                          "new":
+                            {"direct_members": [10], "direct_subgroups": [11]},
+                          "old": 11,
+                        }
+                    - $ref: "#/components/schemas/GroupSettingValueUpdate"
                 can_remove_members_group:
-                  description: |
-                    The set of users who have permission to remove members from this user group
-                    expressed as an [update to a group-setting value][update-group-setting].
+                  allOf:
+                    - description: |
+                        The set of users who have permission to remove members from this user group
+                        expressed as an [update to a group-setting value][update-group-setting].
 
-                    **Changes**: New in Zulip 10.0 (feature level 324). Previously, this
-                    permission was controlled by the `can_manage_group` setting.
+                        **Changes**: New in Zulip 10.0 (feature level 324). Previously, this
+                        permission was controlled by the `can_manage_group` setting.
 
-                    [update-group-setting]: /api/group-setting-values#updating-group-setting-values
-                    [system-groups]: /api/group-setting-values#system-groups
-                  type: object
-                  additionalProperties: false
-                  properties:
-                    new:
-                      allOf:
-                        - description: |
-                            The new [group-setting value](/api/group-setting-values) for the set of users
-                            who would have the permission to remove members from the group.
-                        - $ref: "#/components/schemas/GroupSettingValue"
-                    old:
-                      allOf:
-                        - description: |
-                            The expected current [group-setting value](/api/group-setting-values) for
-                            the set of users who have the permission to remove members from the group.
-                        - $ref: "#/components/schemas/GroupSettingValue"
-                  required:
-                    - new
-                  example:
-                    {
-                      "new": {"direct_members": [10], "direct_subgroups": [11]},
-                      "old": 11,
-                    }
+                        [update-group-setting]: /api/group-setting-values#updating-group-setting-values
+                        [system-groups]: /api/group-setting-values#system-groups
+                      example:
+                        {
+                          "new":
+                            {"direct_members": [10], "direct_subgroups": [11]},
+                          "old": 11,
+                        }
+                    - $ref: "#/components/schemas/GroupSettingValueUpdate"
             encoding:
               can_add_members_group:
                 contentType: application/json
@@ -21892,6 +22000,7 @@ components:
             is_announcement_only: {}
             can_remove_subscribers_group: {}
             can_administer_channel_group: {}
+            can_send_message_group: {}
             stream_weekly_traffic:
               type: integer
               nullable: true
@@ -21995,18 +22104,29 @@ components:
             **Changes**: New in Zulip 2.1.0.
         stream_post_policy:
           type: integer
+          deprecated: true
           description: |
-            [Policy][permission-level] for which users can post messages to the channel.
+            A deprecated representation of a superset of the users who
+            have permission to post messages to the channel available
+            for backwards-compatibility. Clients should use
+            `can_send_message_group` instead.
+
+            It is an enum with the following possible values, corresponding
+            to roles/system groups:
 
             - 1 = Any user can post.
             - 2 = Only administrators can post.
             - 3 = Only [full members][calc-full-member] can post.
             - 4 = Only moderators can post.
 
-            **Changes**: New in Zulip 3.0 (feature level 1), replacing the previous
+            **Changes**: Deprecated in Zulip 10.0 (feature level 333) and
+            replaced by `can_send_message_group`, which supports finer
+            resolution of configurations, resulting in this property being
+            inaccurate following that transition.
+
+            New in Zulip 3.0 (feature level 1), replacing the previous
             `is_announcement_only` boolean.
 
-            [permission-level]: /api/roles-and-permissions#permission-levels
             [calc-full-member]: /api/roles-and-permissions#determining-if-a-user-is-a-full-member
         message_retention_days:
           type: integer
@@ -22064,6 +22184,8 @@ components:
           $ref: "#/components/schemas/CanRemoveSubscribersGroup"
         can_administer_channel_group:
           $ref: "#/components/schemas/CanAdministerChannelGroup"
+        can_send_message_group:
+          $ref: "#/components/schemas/CanSendMessageGroup"
     BasicBot:
       allOf:
         - $ref: "#/components/schemas/BasicBotBase"
@@ -22747,6 +22869,24 @@ components:
                 type: integer
           description: |
             An object with these fields:
+    GroupSettingValueUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        new:
+          allOf:
+            - description: |
+                The new [group-setting value](/api/group-setting-values) for who would
+                have this permission.
+            - $ref: "#/components/schemas/GroupSettingValue"
+        old:
+          allOf:
+            - description: |
+                The expected current [group-setting value](/api/group-setting-values)
+                for who has this permission.
+            - $ref: "#/components/schemas/GroupSettingValue"
+      required:
+        - new
     Invite:
       type: object
       description: |
@@ -23028,18 +23168,29 @@ components:
             The user's personal color for the channel.
         stream_post_policy:
           type: integer
+          deprecated: true
           description: |
-            [Policy][permission-level] for which users can post messages to the channel.
+            A deprecated representation of a superset of the users who
+            have permission to post messages to the channel available
+            for backwards-compatibility. Clients should use
+            `can_send_message_group` instead.
+
+            It is an enum with the following possible values, corresponding
+            to roles/system groups:
 
             - 1 = Any user can post.
             - 2 = Only administrators can post.
             - 3 = Only [full members][calc-full-member] can post.
             - 4 = Only moderators can post.
 
-            **Changes**: New in Zulip 3.0 (feature level 1), replacing the previous
+            **Changes**: Deprecated in Zulip 10.0 (feature level 333) and
+            replaced by `can_send_message_group`, which supports finer
+            resolution of configurations, resulting in this property being
+            inaccurate following that transition.
+
+            New in Zulip 3.0 (feature level 1), replacing the previous
             `is_announcement_only` boolean.
 
-            [permission-level]: /api/roles-and-permissions#permission-levels
             [calc-full-member]: /api/roles-and-permissions#determining-if-a-user-is-a-full-member
         message_retention_days:
           type: integer
@@ -23095,6 +23246,8 @@ components:
           $ref: "#/components/schemas/CanRemoveSubscribersGroup"
         can_administer_channel_group:
           $ref: "#/components/schemas/CanAdministerChannelGroup"
+        can_send_message_group:
+          $ref: "#/components/schemas/CanSendMessageGroup"
         is_archived:
           type: boolean
           description: |
@@ -23476,6 +23629,16 @@ components:
 
             The field name is a legacy holdover from when topics were
             called "subjects" and will eventually change.
+
+            For clients that don't support the `empty_topic_name` [client capability][client-capabilities],
+            the empty string value is replaced with the value of `realm_empty_topic_display_name`
+            found in the [POST /register](/api/register-queue) response, for channel messages.
+
+            **Changes**: Before Zulip 10.0 (feature level 334), `empty_topic_name`
+            client capability didn't exist and empty string as the topic name for
+            channel messages wasn't allowed.
+
+            [client-capabilities]: /api/register-queue#parameter-client_capabilities
         submessages:
           type: array
           description: |
@@ -24608,31 +24771,14 @@ components:
         throw an error.
       type: string
       example: Hello
-    ChannelPostPolicy:
-      description: |
-        [Policy][permission-level] for which users can post messages to the channel.
-
-        - 1 = Any user can post.
-        - 2 = Only administrators can post.
-        - 3 = Only [full members][calc-full-member] can post.
-        - 4 = Only moderators can post.
-
-        **Changes**: New in Zulip 3.0 (feature level 1), replacing the previous
-        `is_announcement_only` boolean.
-
-        [permission-level]: /api/roles-and-permissions#permission-levels
-        [calc-full-member]: /api/roles-and-permissions#determining-if-a-user-is-a-full-member
-      type: integer
-      default: 1
-      example: 2
     HistoryPublicToSubscribers:
       description: |
         Whether the channel's message history should be available to
         newly subscribed members, or users can only access messages
         they actually received while subscribed to the channel.
 
-        Corresponds to the [shared history](/help/channel-permissions)
-        option in documentation.
+        Corresponds to the shared history option for
+        [private channels](/help/channel-permissions#private-channels).
       type: boolean
       example: false
     Principals:
@@ -24757,6 +24903,22 @@ components:
             **Changes**: New in Zulip 10.0 (feature level 325). Prior to this
             change, the permission to administer channels was limited to realm
             administrators.
+
+            [setting-values]: /api/group-setting-values
+    CanSendMessageGroup:
+      allOf:
+        - $ref: "#/components/schemas/GroupSettingValue"
+        - description: |
+            A [group-setting value][setting-values] defining the set of users
+            who have permission to post in this channel.
+
+            Note that a user who is a member of the specified user group must
+            also [have access](/help/channel-permissions) to the channel in
+            order to post in the channel.
+
+            **Changes**: New in Zulip 10.0 (feature level 333). Previously
+            `stream_post_policy` field used to control the permission to
+            post in the channel.
 
             [setting-values]: /api/group-setting-values
     LinkifierPattern:

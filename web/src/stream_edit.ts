@@ -27,7 +27,6 @@ import * as settings_components from "./settings_components.ts";
 import * as settings_config from "./settings_config.ts";
 import * as settings_org from "./settings_org.ts";
 import {current_user, realm} from "./state_data.ts";
-import * as stream_color from "./stream_color.ts";
 import * as stream_data from "./stream_data.ts";
 import * as stream_edit_subscribers from "./stream_edit_subscribers.ts";
 import * as stream_edit_toggler from "./stream_edit_toggler.ts";
@@ -161,18 +160,7 @@ export function update_stream_description(sub: StreamSubscription): void {
 
 function show_subscription_settings(sub: SettingsSubscription): void {
     const $edit_container = stream_settings_containers.get_edit_container(sub);
-
-    const $colorpicker = $edit_container.find(".colorpicker");
-    const color = stream_data.get_color(sub.stream_id);
-    stream_color.set_colorpicker_color($colorpicker, color);
     stream_ui_updates.update_add_subscriptions_elements(sub);
-    const $scroll_container = scroll_util.get_scroll_element($("#stream_settings"));
-
-    $scroll_container.on("scroll", () => {
-        $colorpicker.spectrum("destroy");
-        const color = stream_data.get_color(sub.stream_id);
-        stream_color.set_colorpicker_color($colorpicker, color);
-    });
 
     if (!sub.render_subscribers) {
         return;
@@ -264,7 +252,6 @@ export function show_settings_for(node: HTMLElement): void {
         sub,
         notification_settings,
         other_settings,
-        stream_post_policy_values: settings_config.stream_post_policy_values,
         stream_privacy_policy_values: settings_config.stream_privacy_policy_values,
         stream_privacy_policy: stream_data.get_stream_privacy_policy(stream_id),
         check_default_stream: stream_data.is_default_stream_id(stream_id),

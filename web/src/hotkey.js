@@ -405,6 +405,11 @@ export function process_escape_key(e) {
 function handle_popover_events(event_name) {
     const popover_menu_visible_instance = popover_menus.get_visible_instance();
 
+    if (popover_menus.is_stream_actions_popover_displayed()) {
+        stream_popover.stream_sidebar_menu_handle_keyboard(event_name);
+        return true;
+    }
+
     if (popover_menu_visible_instance) {
         popover_menus.sidebar_menu_instance_handle_keyboard(
             popover_menu_visible_instance,
@@ -425,11 +430,6 @@ function handle_popover_events(event_name) {
 
     if (user_card_popover.user_sidebar.is_open()) {
         user_card_popover.user_sidebar.handle_keyboard(event_name);
-        return true;
-    }
-
-    if (stream_popover.is_open()) {
-        stream_popover.stream_sidebar_menu_handle_keyboard(event_name);
         return true;
     }
 
@@ -532,7 +532,7 @@ export function process_enter_key(e) {
     }
 
     if ($("#preview_message_area").is(":visible")) {
-        compose.enter_with_preview_open();
+        compose.handle_enter_key_with_preview_open();
         return true;
     }
 
@@ -583,7 +583,7 @@ export function process_enter_key(e) {
 export function process_ctrl_enter_key() {
     if ($("#preview_message_area").is(":visible")) {
         const ctrl_pressed = true;
-        compose.enter_with_preview_open(ctrl_pressed);
+        compose.handle_enter_key_with_preview_open(ctrl_pressed);
         return true;
     }
 

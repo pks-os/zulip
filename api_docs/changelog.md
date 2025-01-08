@@ -20,6 +20,72 @@ format used by the Zulip server that they are interacting with.
 
 ## Changes in Zulip 10.0
 
+**Feature level 334**
+
+* [`POST /register`](/api/register-queue): Added
+  `realm_empty_topic_display_name` field for clients to use
+  while adding support for empty string as topic name.
+
+* [`POST /register`](/api/register-queue): Added `empty_topic_name`
+  [client capability](/api/register-queue#parameter-client_capabilities)
+  to allow client to specify whether it supports empty string as a topic name
+  in `register` response or events involving topic names.
+  Clients that don't support this client capability receive
+  `realm_empty_topic_display_name` field value as the topic name replacing
+  the empty string.
+
+* [`GET /events`](/api/get-events): For clients that don't support
+  the `empty_topic_name` [client capability](/api/register-queue#parameter-client_capabilities),
+  the following fields will have the value of `realm_empty_topic_display_name`
+  field replacing the empty string for channel messages:
+    * `subject` field in the `message` event type
+    * `topic` field in the `delete_message` event type
+    * `orig_subject` and `subject` fields in the `update_message` event type
+    * `topic_name` field in the `user_topic` event type
+    * `topic` field in the `typing` event type
+    * `topic` field in the `update_message_flags` event type when removing `read` flag
+
+* [`GET /messages`](/api/get-messages),
+  [`GET /messages/{message_id}`](/api/get-message): Added `allow_empty_topic_name`
+  boolean parameter to decide whether the topic names in the fetched messages
+  can be empty strings.
+
+* [`GET /messages/{message_id}/history`](/api/get-message-history):
+  Added `allow_empty_topic_name` boolean parameter to decide whether the
+  topic names in the fetched message history objects can be empty strings.
+
+* [`POST /register`](/api/register-queue): For clients that don't support
+  the `empty_topic_name` [client capability](/api/register-queue#parameter-client_capabilities),
+  the `topic` field in the `unread_msgs` object and `topic_name` field
+  in the `user_topics` objects will have the value of
+  `realm_empty_topic_display_name` field replacing the empty string
+  for channel messages.
+
+**Feature level 333**
+
+* [Message formatting](/api/message-formatting): System groups can now
+  be silently mentioned.
+* [`GET /users/me/subscriptions`](/api/get-subscriptions),
+  [`GET /streams`](/api/get-streams), [`GET /events`](/api/get-events),
+  [`POST /register`](/api/register-queue): Added `can_send_message_group`
+  which is a [group-setting value](/api/group-setting-values) describing the
+  set of users with permissions to post in the channel.
+* [`POST /users/me/subscriptions`](/api/subscribe),
+  [`PATCH /streams/{stream_id}`](/api/update-stream): Added `can_send_message_group`
+  which is a [group-setting value](/api/group-setting-values) describing the
+  set of users with permissions to post in the channel.
+* [`GET /users/me/subscriptions`](/api/get-subscriptions),
+  [`GET /streams`](/api/get-streams), [`GET /events`](/api/get-events),
+  [`POST /register`](/api/register-queue): `stream_post_policy` field is
+  deprecated, having been replaced by `can_send_message_group`. Notably,
+  this backwards-compatible `stream_post_policy` value now contains the
+  superset of the true value that best approximates the actual permission
+  setting.
+* [`POST /users/me/subscriptions`](/api/subscribe),
+  [`PATCH /streams/{stream_id}`](/api/update-stream): Removed
+  `stream_post_policy` and `is_announcement_only` properties, as the permission
+  to post in the channel is now controlled by `can_send_message_group` setting.
+
 **Feature level 332**
 
 * [`POST /register`](/api/register-queue): Added
@@ -861,7 +927,7 @@ No changes; feature level used for Zulip 9.0 release.
 
 **Feature level 247**
 
-* [Markdown message formatting](/api/message-formatting#mentions):
+* [Markdown message formatting](/api/message-formatting#mentions-and-silent-mentions):
   Added `channel` to the supported options for [wildcard
   mentions](/help/mention-a-user-or-group#mention-everyone-on-a-stream).
 

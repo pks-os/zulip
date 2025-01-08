@@ -336,16 +336,28 @@
     }
 }
 
-#message-content-container:has(.new_message_textarea.over_limit),
-#message-content-container:has(.new_message_textarea.over_limit:focus),
-.edit-content-container:has(.message_edit_content.over_limit),
-.edit-content-container:has(.message_edit_content.over_limit:focus) {
+#message-content-container:has(.new_message_textarea.textarea-over-limit),
+.edit-content-container:has(.message_edit_content.textarea-over-limit) {
     box-shadow: 0 0 0 1pt
         var(--color-message-content-container-border-over-limit);
 }
 
-#message-content-container:has(.new_message_textarea.over_limit.flash),
-.edit-content-container:has(.message_edit_content.over_limit.flash) {
+#message-content-container:has(
+        .new_message_textarea.textarea-approaching-limit
+    ),
+.edit-content-container:has(.message_edit_content.textarea-approaching-limit) {
+    box-shadow: 0 0 0 1pt
+        var(--color-message-content-container-border-approaching-limit);
+}
+
+#message-content-container:has(.new_message_textarea.textarea-over-limit.flash),
+#message-content-container:has(
+        .new_message_textarea.textarea-approaching-limit.flash
+    ),
+.edit-content-container:has(.message_edit_content.textarea-over-limit.flash),
+.edit-content-container:has(
+        .message_edit_content.textarea-approaching-limit.flash
+    ) {
     animation: message-limit-flash 0.5s ease-in-out 3;
 }
 
@@ -406,6 +418,18 @@
     padding-right: var(--composebox-buttons-width);
     background-color: var(--color-compose-message-content-background);
     color: var(--color-text-default);
+
+    &.textarea-over-limit {
+        background-color: var(
+            --color-compose-message-content-background-over-limit
+        );
+    }
+
+    &.textarea-approaching-limit {
+        background-color: var(
+            --color-compose-message-content-background-approaching-limit
+        );
+    }
 }
 
 .surround-formatting-buttons-row {
@@ -478,7 +502,7 @@
     margin-top: auto;
     padding: 3px 3px 3px 0;
 
-    &.over_limit {
+    &.textarea-over-limit {
         color: var(--color-limit-indicator-over-limit);
         font-weight: bold;
     }
@@ -552,11 +576,7 @@
     border: 1px solid;
     display: flex;
     align-items: center;
-    /* Banners should carry at least a minimum
-       legacy font-size of 15px, and a line-height
-       of 18px. 1.2em is 18px at 15px/1em. */
-    font-size: max(15px, var(--base-font-size-px));
-    line-height: max(18px, 1.2em);
+    line-height: 1.2em; /* 18px at 15px/1em. */
 
     .main-view-banner-elements-wrapper {
         display: flex;
@@ -684,13 +704,6 @@
            ::before content where the icon sits. */
         display: flex;
         align-items: center;
-
-        /* Set the font-size for the close button
-           on the ::before element, so that it doesn't
-           impact the em units above. */
-        &::before {
-            font-size: 16px;
-        }
     }
 
     .banner_content + .main-view-banner-close-button {
