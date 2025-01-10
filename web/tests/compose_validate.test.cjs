@@ -3,6 +3,7 @@
 const assert = require("node:assert/strict");
 
 const {mock_banners} = require("./lib/compose_banner.cjs");
+const {FakeComposeBox} = require("./lib/compose_helpers.cjs");
 const {$t} = require("./lib/i18n.cjs");
 const {mock_esm, zrequire} = require("./lib/namespace.cjs");
 const {run_test, noop} = require("./lib/test.cjs");
@@ -116,7 +117,11 @@ function stub_message_row($textarea) {
 }
 
 test_ui("validate_stream_message_address_info", ({mock_template}) => {
-    mock_banners();
+    // For this test we basically only use FakeComposeBox
+    // to set up the DOM environment. We don't assert about
+    // any side effects on the DOM, since the scope of this
+    // test is mostly to make sure the template gets rendered.
+    new FakeComposeBox();
 
     const party_sub = {
         stream_id: 101,
@@ -128,7 +133,6 @@ test_ui("validate_stream_message_address_info", ({mock_template}) => {
 
     party_sub.subscribed = false;
     stream_data.add_sub(party_sub);
-    $("#compose_banners .user_not_subscribed").length = 0;
     let user_not_subscribed_rendered = false;
     mock_template("compose_banner/compose_banner.hbs", true, (data, html) => {
         assert.equal(data.classname, compose_banner.CLASSNAMES.user_not_subscribed);
@@ -142,7 +146,9 @@ test_ui("validate_stream_message_address_info", ({mock_template}) => {
     party_sub.stream_id = 102;
     stream_data.add_sub(party_sub);
     user_not_subscribed_rendered = false;
+
     assert.ok(!compose_validate.validate_stream_message_address_info(party_sub));
+
     assert.ok(user_not_subscribed_rendered);
 });
 
@@ -547,42 +553,31 @@ test_ui("test_stream_posting_permission", ({mock_template, override}) => {
     assert.ok(!banner_rendered);
 });
 
-test_ui("test_check_overflow_text", ({mock_template, override}) => {
+test_ui("test_check_overflow_text", ({override}) => {
+    const fake_compose_box = new FakeComposeBox();
+
     override(realm, "max_message_length", 10000);
 
-    const $elem = $("#send_message_form");
-    const $textarea = $(".message-textarea");
-    const $indicator = $(".message-limit-indicator");
-    stub_message_row($textarea);
-    $elem.set_find_results(".message-textarea", $textarea);
-    $elem.set_find_results(".message-limit-indicator", $indicator);
+    // RED
+    {
+        fake_compose_box.set_textarea_val("a".repeat(10005));
+        compose_validate.check_overflow_text(fake_compose_box.$send_message_form);
+        fake_compose_box.assert_message_size_is_over_the_limit("-5\n");
+    }
 
-    // Indicator should show red colored text
-    let limit_indicator_html;
-    mock_template("compose_limit_indicator.hbs", true, (_data, html) => {
-        limit_indicator_html = html;
-    });
-    $textarea.val("a".repeat(10000 + 1));
-    compose_validate.check_overflow_text($elem);
-    assert.ok($indicator.hasClass("textarea-over-limit"));
-    assert.equal(limit_indicator_html, "-1\n");
-    assert.ok($textarea.hasClass("textarea-over-limit"));
-    assert.ok($(".message-send-controls").hasClass("disabled-message-send-controls"));
+    // ORANGE
+    {
+        fake_compose_box.set_textarea_val("a".repeat(9100));
+        compose_validate.check_overflow_text(fake_compose_box.$send_message_form);
+        fake_compose_box.assert_message_size_is_under_the_limit("900\n");
+    }
 
-    // Indicator should show orange colored text
-    $textarea.val("a".repeat(9100));
-    compose_validate.check_overflow_text($elem);
-    assert.ok(!$indicator.hasClass("textarea-over-limit"));
-    assert.equal(limit_indicator_html, "900\n");
-    assert.ok(!$textarea.hasClass("textarea-over-limit"));
-    assert.ok(!$(".message-send-controls").hasClass("disabled-message-send-controls"));
-
-    // Indicator must be empty
-    $textarea.val("a".repeat(9100 - 1));
-    compose_validate.check_overflow_text($elem);
-    assert.ok(!$indicator.hasClass("textarea-over-limit"));
-    assert.equal($indicator.text(), "");
-    assert.ok(!$textarea.hasClass("textarea-over-limit"));
+    // ALL CLEAR
+    {
+        fake_compose_box.set_textarea_val("a".repeat(9100 - 1));
+        compose_validate.check_overflow_text(fake_compose_box.$send_message_form);
+        fake_compose_box.assert_message_size_is_under_the_limit();
+    }
 });
 
 test_ui("needs_subscribe_warning", () => {

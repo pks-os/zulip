@@ -20,6 +20,27 @@ format used by the Zulip server that they are interacting with.
 
 ## Changes in Zulip 10.0
 
+**Feature level 337**
+
+* `POST /calls/bigbluebutton/create`: Added a `voice_only` parameter
+  controlling whether the call should be voice-only, in which case we
+  keep cameras disabled for this call. Now the call creator is a
+  moderator and all other joinees are viewers.
+
+**Feature level 336**
+
+* [Markdown message formatting](/api/message-formatting#image-previews): Added
+  `data-original-content-type` attribute to convey the type of the original
+  image, and optional `data-transcoded-image` attribute for images with formats
+  which are not widely supported by browsers.
+
+**Feature level 335**
+
+* [`GET /streams/{stream_id}/email_address`](/api/get-stream-email-address):
+  Added an optional `sender_id` parameter to specify the ID of a user or bot
+  which should appear as the sender when messages are sent to the channel using
+  the returned channel email address.
+
 **Feature level 334**
 
 * [`POST /register`](/api/register-queue): Added
