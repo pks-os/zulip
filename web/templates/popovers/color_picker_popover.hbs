@@ -13,24 +13,29 @@
                 &nbsp;
                 {{/if}}
             </div>
+            <button class="color_picker_confirm_button icon-button icon-button-square icon-button-neutral tippy-zulip-delayed-tooltip" data-tooltip-template-id="color-picker-confirm-button-tooltip-template" aria-label="{{t 'Confirm new color' }}" tabindex="0">
+                <i class="zulip-icon zulip-icon-check"></i>
+            </button>
         </div>
     </div>
     <ul role="menu" class="popover-menu-list">
         <li role="none">
             <div role="group" class="color-swatch-list" aria-label="{{t 'Stream color' }}">
-                {{#each stream_color_palette as |hex_color|}}
-                    <input type="radio" id="color-{{hex_color}}" class="color-swatch-input" name="color-picker-select" data-swatch-color="{{hex_color}}" {{#if (eq hex_color ../stream_color )}}checked{{/if}} />
-                    <label role="menuitemradio" class="color-swatch-label tippy-zulip-delayed-tooltip" for="color-{{hex_color}}" style="background-color: {{hex_color}};" aria-label="{{hex_color}}" data-tippy-content="{{hex_color}}" tabindex="0"></label>
+                {{#each stream_color_palette as |row|}}
+                    {{#each row as |hex_color|}}
+                        <input type="radio" id="color-{{hex_color}}" class="color-swatch-input" name="color-picker-select" data-swatch-color="{{hex_color}}" {{#if (eq hex_color ../stream_color )}}checked{{/if}} />
+                        <label role="menuitemradio" class="color-swatch-label tippy-zulip-delayed-tooltip" for="color-{{hex_color}}" style="background-color: {{hex_color}};" aria-label="{{hex_color}}" data-tippy-content="{{hex_color}}" data-swatch-color="{{hex_color}}" data-row="{{@../index}}" data-column="{{@index}}" tabindex="0"></label>
+                    {{/each}}
                 {{/each}}
             </div>
         </li>
         <li role="separator" class="popover-menu-separator"></li>
         <li role="none" class="link-item popover-menu-list-item">
-            <a role="menuitem" class="custom-color-picker popover-menu-link" tabindex="0">
-                <i class="custom-color-option-icon" style="background-color: {{stream_color}};" aria-hidden="true"></i>
+            <label role="menuitem" class="custom-color-picker popover-menu-link" tabindex="0">
+                <i class="custom-color-swatch-icon popover-menu-icon" aria-hidden="true"></i>
                 <span class="popover-menu-label">{{t "Custom color"}}</span>
                 <input type="color" class="color-picker-input" tabindex="-1" value="{{stream_color}}" />
-            </a>
+            </label>
         </li>
     </ul>
 </div>

@@ -12,8 +12,6 @@ import * as stream_settings_api from "./stream_settings_api.ts";
 import * as ui_util from "./ui_util.ts";
 
 const update_color_picker_preview = (color: string, $popper: JQuery): void => {
-    const $custom_color_option_icon = $popper.find(".custom-color-option-icon");
-    $custom_color_option_icon.css("background-color", color);
     const $stream_header = $popper.find(".message_header_stream");
     stream_color.update_stream_recipient_color($stream_header, color);
 };
@@ -28,6 +26,90 @@ const update_stream_color_debounced = _.debounce(
     // Don't execute immediately on the first color change
     {leading: false},
 );
+
+export function handle_keyboard(key: string): void {
+    const instance = popover_menus.get_color_picker_popover();
+    if (!instance) {
+        return;
+    }
+    const $items = popover_menus.get_popover_items_for_instance(instance);
+    if (!$items) {
+        return;
+    }
+
+    const $element = $items.filter(":focus");
+
+    if ($element.hasClass("color-swatch-label")) {
+        const color_hex_code = $element.attr("data-swatch-color");
+        if (!color_hex_code) {
+            return;
+        }
+        const color_palette_matrix = stream_color.stream_color_palette;
+        if (!color_palette_matrix) {
+            return;
+        }
+        const max_row = color_palette_matrix.length - 1;
+        const max_column = color_palette_matrix[0]!.length - 1;
+        const row = Number.parseInt($element.attr("data-row")!, 10);
+        const column = Number.parseInt($element.attr("data-column")!, 10);
+
+        const $swatch_color_list = $(instance.popper).find(".color-swatch-list");
+
+        if (key === "down_arrow" || key === "vim_down") {
+            if (row < max_row) {
+                $swatch_color_list
+                    .find(`[data-row="${row + 1}"][data-column="${column}"]`)
+                    .trigger("focus");
+            } else if (row === max_row) {
+                $swatch_color_list
+                    .parent()
+                    .nextAll(".link-item")
+                    .find("[tabindex='0']")
+                    .trigger("focus");
+            }
+            return;
+        }
+
+        if (key === "up_arrow" || key === "vim_up") {
+            if (row > 0) {
+                $swatch_color_list
+                    .find(`[data-row="${row - 1}"][data-column="${column}"]`)
+                    .trigger("focus");
+            } else {
+                $(instance.popper).find(".color_picker_confirm_button").trigger("focus");
+            }
+            return;
+        }
+
+        if (key === "left_arrow" || key === "vim_left") {
+            if (column > 0) {
+                $swatch_color_list
+                    .find(`[data-row="${row}"][data-column="${column - 1}"]`)
+                    .trigger("focus");
+            } else {
+                $swatch_color_list
+                    .find(`[data-row="${row - 1}"][data-column="${max_column}"]`)
+                    .trigger("focus");
+            }
+            return;
+        }
+
+        if (key === "right_arrow" || key === "vim_right") {
+            if (column < max_column) {
+                $swatch_color_list
+                    .find(`[data-row="${row}"][data-column="${column + 1}"]`)
+                    .trigger("focus");
+            } else {
+                $swatch_color_list
+                    .find(`[data-row="${row + 1}"][data-column="0"]`)
+                    .trigger("focus");
+            }
+            return;
+        }
+    }
+
+    popover_menus.popover_items_handle_keyboard(key, $items);
+}
 
 export function toggle_color_picker_popover(
     target: tippy.ReferenceElement,
@@ -57,7 +139,7 @@ export function toggle_color_picker_popover(
             const stream_privacy_icon_color = stream_color.get_stream_privacy_icon_color(color);
             const invite_only = stream_data.is_invite_only_by_stream_id(stream_id);
             const is_web_public = stream_data.is_web_public(stream_id);
-            const stream_color_palette = stream_color.stream_color_palette.flat();
+            const stream_color_palette = stream_color.stream_color_palette;
 
             instance.setContent(
                 ui_util.parse_html(
@@ -112,6 +194,10 @@ export function toggle_color_picker_popover(
                     update_stream_color_debounced(new_color, stream_id, $popper);
                 },
             );
+
+            $popper.on("click", ".color_picker_confirm_button", () => {
+                popover_menus.hide_current_popover_if_visible(instance);
+            });
         },
         onHidden(instance) {
             instance.destroy();

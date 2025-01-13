@@ -29,6 +29,11 @@
         );
         scale: 0.96;
     }
+
+    &:focus {
+        /* Override common button outline style set in zulip.css and dark_theme.css */
+        outline: none;
+    }
 }
 
 .action-button-label {
@@ -359,12 +364,20 @@
     /* This class should always be used with an icon-button-* class
        defining the color scheme of the button, defined below. */
     display: flex;
+    justify-content: center;
+    align-items: center;
+    aspect-ratio: 1;
     font-size: var(--base-font-size-px);
     background-color: transparent; /* Override button default background color */
     padding: 0.375em;
     cursor: pointer;
     border: none;
     border-radius: 4px;
+
+    &:focus {
+        /* Override common button outline style set in zulip.css and dark_theme.css */
+        outline: none;
+    }
 }
 
 .icon-button-neutral {

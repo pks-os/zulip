@@ -658,11 +658,6 @@ export function open_group_edit_panel_for_row(group_row: HTMLElement): void {
     show_group_settings(group);
 }
 
-// Ideally this should be included in page params.
-// Like we have realm.max_stream_name_length` and
-// `realm.max_stream_description_length` for streams.
-export const max_user_group_name_length = 100;
-
 export function set_up_click_handlers(): void {
     $("#groups_overlay").on("click", ".left #clear_search_group_name", (e) => {
         const $input = $("#groups_overlay .left #search_group_name");
@@ -796,6 +791,7 @@ export function update_group(event: UserGroupUpdateEvent): void {
     const $group_row = row_for_group_id(group_id);
     if (event.data.name !== undefined) {
         $group_row.find(".group-name").text(group.name);
+        user_group_create.maybe_update_error_message();
     }
 
     if (event.data.description !== undefined) {
@@ -1042,7 +1038,7 @@ export function setup_page(callback: () => void): void {
             upgrade_text_for_wide_organization_logo: realm.upgrade_text_for_wide_organization_logo,
             is_business_type_org:
                 realm.realm_org_type === settings_config.all_org_type_values.business.code,
-            max_user_group_name_length,
+            max_user_group_name_length: user_groups.max_user_group_name_length,
         };
 
         const groups_overlay_html = render_user_group_settings_overlay(template_data);
@@ -1223,7 +1219,8 @@ export function initialize(): void {
             const template_data = {
                 group_name: user_group.name,
                 group_description: user_group.description,
-                max_user_group_name_length,
+                max_user_group_name_length: user_groups.max_user_group_name_length,
+                allow_editing_description: true,
             };
             const change_user_group_info_modal = render_change_user_group_info_modal(template_data);
             dialog_widget.launch({
