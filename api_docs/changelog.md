@@ -20,6 +20,19 @@ format used by the Zulip server that they are interacting with.
 
 ## Changes in Zulip 10.0
 
+**Feature level 339**
+
+* [`GET /events`](/api/get-events): Added `user` field back in
+  `reaction` events, reverting part of the feature level 328
+  changes. Note that this field was only restored in the events API,
+  and remains deprecated, pending core clients fully migrating away
+  from accessing it.
+
+**Feature level 338**
+
+* [`POST /register`](/api/register-queue): Added `password_max_length`
+  field, which is the maximum allowed password length.
+
 **Feature level 337**
 
 * `POST /calls/bigbluebutton/create`: Added a `voice_only` parameter
