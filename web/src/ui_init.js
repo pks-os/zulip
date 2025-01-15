@@ -26,7 +26,6 @@ import * as compose from "./compose.js";
 import * as compose_closed_ui from "./compose_closed_ui.ts";
 import * as compose_notifications from "./compose_notifications.ts";
 import * as compose_pm_pill from "./compose_pm_pill.ts";
-import * as compose_popovers from "./compose_popovers.ts";
 import * as compose_recipient from "./compose_recipient.ts";
 import * as compose_reply from "./compose_reply.ts";
 import * as compose_send_menu_popover from "./compose_send_menu_popover.js";
@@ -267,8 +266,12 @@ export function initialize_kitchen_sink_stuff() {
 
     // Ignore wheel events in the compose area which weren't already handled above.
     $("#compose").on("wheel", (e) => {
-        // Except for the compose banners, which still need scroll events.
-        if ($(e.target).closest("#compose_banners").length > 0) {
+        // Except for the compose banners or formatting buttons,
+        // which still need scroll events.
+        if (
+            $(e.target).closest("#compose_banners, #message-formatting-controls-container").length >
+            0
+        ) {
             return;
         }
         e.stopPropagation();
@@ -444,7 +447,6 @@ export function initialize_everything(state_data) {
     scheduled_messages.initialize(state_data.scheduled_messages);
     scheduled_messages_ui.initialize();
     popover_menus.initialize();
-    compose_popovers.initialize();
     left_sidebar_navigation_area_popovers.initialize();
     user_topic_popover.initialize();
     topic_popover.initialize();
