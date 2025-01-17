@@ -2240,12 +2240,23 @@ class BillingSession(ABC):
     def validate_plan_license_management(
         self, plan: CustomerPlan, renewal_license_count: int
     ) -> None:
-        if plan.automanage_licenses or plan.customer.exempt_from_license_number_check:
-            return
+        if plan.customer.exempt_from_license_number_check:
+            return  # nocoverage
 
         # TODO: Enforce manual license management for all paid plans.
         if plan.tier not in [CustomerPlan.TIER_CLOUD_STANDARD, CustomerPlan.TIER_CLOUD_PLUS]:
             return  # nocoverage
+
+        min_licenses = self.min_licenses_for_plan(plan.tier)
+        if min_licenses > renewal_license_count:  # nocoverage
+            # If we are renewing less licenses than the minimum required for the plan, we need to
+            # adjust `license_at_next_renewal` for the customer.
+            raise BillingError(
+                f"Renewal licenses ({renewal_license_count}) less than minimum licenses ({min_licenses}) required for plan {plan.name}."
+            )
+
+        if plan.automanage_licenses:
+            return
 
         if self.current_count_for_billed_licenses() > renewal_license_count:
             raise BillingError(
@@ -2312,7 +2323,6 @@ class BillingSession(ABC):
                 )
 
             if plan.status == CustomerPlan.SWITCH_PLAN_TIER_AT_PLAN_END:  # nocoverage
-                self.validate_plan_license_management(plan, licenses_at_next_renewal)
                 plan.status = CustomerPlan.ENDED
                 plan.save(update_fields=["status"])
 
@@ -2322,6 +2332,7 @@ class BillingSession(ABC):
                     billing_cycle_anchor=plan.end_date,
                     status=CustomerPlan.NEVER_STARTED,
                 )
+                self.validate_plan_license_management(new_plan, licenses_at_next_renewal)
                 new_plan.status = CustomerPlan.ACTIVE
                 new_plan.save(update_fields=["status"])
                 self.do_change_plan_type(tier=new_plan.tier, background_update=True)
@@ -2891,6 +2902,9 @@ class BillingSession(ABC):
             )
         if tier == CustomerPlan.TIER_SELF_HOSTED_BUSINESS:
             return 25
+
+        if tier == CustomerPlan.TIER_CLOUD_PLUS:
+            return 10
         return 1
 
     def downgrade_at_the_end_of_billing_cycle(self, plan: CustomerPlan | None = None) -> None:
