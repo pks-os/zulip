@@ -533,6 +533,7 @@ export function show_settings_for(group: UserGroup): void {
         creator: stream_data.maybe_get_creator_details(group.creator_id),
         is_creator: group.creator_id === current_user.user_id,
         ...get_membership_status_context(group),
+        group_setting_labels: settings_config.group_setting_labels.group,
     });
 
     scroll_util.get_content_element($("#user_group_settings")).html(html);
@@ -780,16 +781,13 @@ export function sync_group_permission_setting(property: string, group: UserGroup
     }
 }
 
-export function update_group(event: UserGroupUpdateEvent): void {
+export function update_group(event: UserGroupUpdateEvent, group: UserGroup): void {
     if (!overlays.groups_open()) {
         return;
     }
 
-    const group_id = event.group_id;
-    const group = user_groups.get_user_group_from_id(group_id);
-
     // update left side pane
-    const $group_row = row_for_group_id(group_id);
+    const $group_row = row_for_group_id(group.id);
     if (event.data.name !== undefined) {
         $group_row.find(".group-name").text(user_groups.get_display_group_name(group.name));
         user_group_create.maybe_update_error_message();
@@ -1042,6 +1040,7 @@ export function setup_page(callback: () => void): void {
             is_business_type_org:
                 realm.realm_org_type === settings_config.all_org_type_values.business.code,
             max_user_group_name_length: user_groups.max_user_group_name_length,
+            group_setting_labels: settings_config.group_setting_labels.group,
         };
 
         const groups_overlay_html = render_user_group_settings_overlay(template_data);
